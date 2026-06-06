@@ -181,16 +181,27 @@ function processTexture(img, key) {
     processed.src = canvas.toDataURL();
     processed.onload = () => {
       ROBOT_TEXTURES[key] = processed;
+      if (gamePhase === 'setup') renderSetupPreview();
     };
   } catch (e) {
     console.warn("Dynamic texture transparency failed, using fallback:", e);
     ROBOT_TEXTURES[key] = img;
+    if (gamePhase === 'setup') renderSetupPreview();
   }
 }
 
-ROBOT_IMAGES.colombia.onload = () => processTexture(ROBOT_IMAGES.colombia, 'colombia');
-ROBOT_IMAGES.ally.onload = () => processTexture(ROBOT_IMAGES.ally, 'ally');
-ROBOT_IMAGES.rival.onload = () => processTexture(ROBOT_IMAGES.rival, 'rival');
+ROBOT_IMAGES.colombia.onload = () => {
+  processTexture(ROBOT_IMAGES.colombia, 'colombia');
+  if (gamePhase === 'setup') renderSetupPreview();
+};
+ROBOT_IMAGES.ally.onload = () => {
+  processTexture(ROBOT_IMAGES.ally, 'ally');
+  if (gamePhase === 'setup') renderSetupPreview();
+};
+ROBOT_IMAGES.rival.onload = () => {
+  processTexture(ROBOT_IMAGES.rival, 'rival');
+  if (gamePhase === 'setup') renderSetupPreview();
+};
 
 // ── 4. GAME STATE ───────────────────────────────────────────────
 let gamePhase = 'setup'; // 'setup' | 'countdown' | 'playing' | 'ended'
