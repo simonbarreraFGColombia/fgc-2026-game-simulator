@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulación en Tiempo Real FGC 2026 — Team Colombia</title>
+  <meta name="description" content="Simulador interactivo en tiempo real del partido FGC 2026 Igniting Innovation. Controla tu robot con WASD, recoge wildfires y anota puntos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="simulacion.css">
+</head>
+<body>
+  <div class="app-container sim-app">
+
+    <!-- ═══ Header ═══ -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="flag-stripe yellow"></span>
+        <span class="flag-stripe blue"></span>
+        <span class="flag-stripe red"></span>
+        <h1>TEAM COLOMBIA</h1>
+      </div>
+      <nav class="nav-area">
+        <a href="index.html" class="nav-link">Calculadora</a>
+        <a href="simulacion.html" class="nav-link active">Simulación</a>
+        <a href="estrategias.html" class="nav-link">Estrategias</a>
+      </nav>
+    </header>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         PHASE 1: SETUP SCREEN
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="setupScreen" class="sim-phase">
+
+      <!-- Big Timer Preview -->
+      <div class="setup-timer-preview">
+        <div class="setup-timer-value">2:30</div>
+        <div class="setup-timer-label">DURACIÓN DEL PARTIDO</div>
+      </div>
+
+      <div class="setup-workspace">
+        <!-- Left: Field Preview -->
+        <div class="setup-field-preview">
+          <canvas id="setupCanvas" width="500" height="500"></canvas>
+          <div class="setup-field-hint">Vista previa del campo • Escoge tu posición</div>
+        </div>
+
+        <!-- Right: Configuration Panel -->
+        <div class="setup-config">
+
+          <!-- Alliance & Position -->
+          <div class="config-card">
+            <div class="config-card-header">
+              <span class="config-icon">🏳️</span>
+              <h3>ALIANZA Y POSICIÓN</h3>
+            </div>
+            <div class="config-row">
+              <label>Alianza</label>
+              <div class="toggle-group" id="allianceToggle">
+                <button class="toggle-btn active" data-value="red">🔴 Red</button>
+                <button class="toggle-btn" data-value="blue">🔵 Blue</button>
+              </div>
+            </div>
+            <div class="config-row">
+              <label>Equipo</label>
+              <div class="toggle-group" id="teamToggle">
+                <button class="toggle-btn active" data-value="1">Equipo 1</button>
+                <button class="toggle-btn" data-value="2">Equipo 2</button>
+                <button class="toggle-btn" data-value="3">Equipo 3</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Robot Specs -->
+          <div class="config-card">
+            <div class="config-card-header">
+              <span class="config-icon">🤖</span>
+              <h3>SPECS DE MI ROBOT</h3>
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Velocidad de Movimiento</label>
+                <span class="spec-unit" id="moveSpeedVal">1.5 m/s</span>
+              </div>
+              <input type="range" class="spec-slider" id="moveSpeed" min="0.5" max="3.0" step="0.1" value="1.5">
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Velocidad de Recogida</label>
+                <span class="spec-unit" id="pickupSpeedVal">2.0 pelotas/s</span>
+              </div>
+              <input type="range" class="spec-slider" id="pickupSpeed" min="0.5" max="5.0" step="0.5" value="2.0">
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Velocidad de Disparo</label>
+                <span class="spec-unit" id="shotSpeedVal">3.0 pelotas/s</span>
+              </div>
+              <input type="range" class="spec-slider" id="shotSpeed" min="1.0" max="8.0" step="0.5" value="3.0">
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Capacidad de Almacenamiento</label>
+                <span class="spec-unit" id="capacityVal">12 pelotas</span>
+              </div>
+              <input type="range" class="spec-slider" id="capacity" min="3" max="30" step="1" value="12">
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Precisión del Robot</label>
+                <span class="spec-unit" id="accuracyVal">80%</span>
+              </div>
+              <input type="range" class="spec-slider" id="accuracy" min="20" max="100" step="5" value="80">
+            </div>
+          </div>
+
+          <!-- Bot Difficulty -->
+          <div class="config-card">
+            <div class="config-card-header">
+              <span class="config-icon">🎮</span>
+              <h3>DIFICULTAD DE BOTS</h3>
+            </div>
+            <div class="config-row">
+              <label>Aliados</label>
+              <div class="toggle-group" id="allyDifficulty">
+                <button class="toggle-btn" data-value="0.6">Básica</button>
+                <button class="toggle-btn active" data-value="0.8">Media</button>
+                <button class="toggle-btn" data-value="1.0">Fuerte</button>
+              </div>
+            </div>
+            <div class="config-row">
+              <label>Rivales</label>
+              <div class="toggle-group" id="rivalDifficulty">
+                <button class="toggle-btn" data-value="0.6">Básica</button>
+                <button class="toggle-btn active" data-value="0.8">Media</button>
+                <button class="toggle-btn" data-value="1.0">Fuerte</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Human Player -->
+          <div class="config-card">
+            <div class="config-card-header">
+              <span class="config-icon">🧑</span>
+              <h3>HUMAN PLAYER</h3>
+            </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Precisión del Humano</label>
+                <span class="spec-unit" id="hpAccuracyVal">70%</span>
+              </div>
+              <input type="range" class="spec-slider hp-slider" id="hpAccuracy" min="10" max="100" step="5" value="70">
+            </div>
+          </div>
+
+          <!-- Start Button -->
+          <button class="start-match-btn" id="startMatchBtn">
+            <span class="start-icon">▶</span>
+            <span>INICIAR PARTIDO</span>
+          </button>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         PHASE 2: IN-GAME
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="gameScreen" class="sim-phase" style="display:none;">
+
+      <!-- Scoreboard Bar -->
+      <div class="game-scoreboard">
+        <div class="gs-alliance red">
+          <span class="gs-label">● RED</span>
+          <span class="gs-score" id="gsRedScore">0</span>
+        </div>
+        <div class="gs-center">
+          <div class="gs-timer" id="gsTimer">2:30</div>
+          <div class="gs-ext">🧯 <span id="gsExtScore">0</span></div>
+        </div>
+        <div class="gs-alliance blue">
+          <span class="gs-score" id="gsBlueScore">0</span>
+          <span class="gs-label">BLUE ●</span>
+        </div>
+      </div>
+
+      <!-- Game Canvas -->
+      <div class="game-canvas-wrapper">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Countdown Overlay -->
+        <div class="countdown-overlay" id="countdownOverlay" style="display:none;">
+          <div class="countdown-number" id="countdownNumber">3</div>
+        </div>
+      </div>
+
+      <!-- HUD Bar -->
+      <div class="game-hud">
+        <div class="hud-item">
+          <span class="hud-icon">🎒</span>
+          <span class="hud-label">Inventario</span>
+          <span class="hud-value" id="hudInventory">0 / 12</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-icon">📡</span>
+          <span class="hud-label">Estado</span>
+          <span class="hud-value" id="hudStatus">Esperando...</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-icon">🔥</span>
+          <span class="hud-label">En Campo</span>
+          <span class="hud-value" id="hudFieldBalls">500</span>
+        </div>
+        <div class="hud-controls">
+          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover
+          <kbd>P</kbd> Recoger
+          <kbd>SPACE</kbd> Lanzar
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         PHASE 3: RESULTS
+         ═══════════════════════════════════════════════════════════ -->
+    <div id="resultsScreen" class="sim-phase" style="display:none;">
+      <div class="results-container">
+        <div class="results-header">
+          <div class="results-title">✨ RESULTADO FINAL ✨</div>
+        </div>
+
+        <div class="results-scores">
+          <div class="result-alliance red">
+            <div class="result-label">RED ALLIANCE</div>
+            <div class="result-score" id="resultRedScore">0</div>
+            <div class="result-breakdown">
+              <div class="rb-item"><span>Supresión</span><strong id="rbRedSup">0</strong></div>
+              <div class="rb-item"><span>×Multiplicador</span><strong id="rbRedMult">1.00</strong></div>
+              <div class="rb-item"><span>Regional</span><strong id="rbRedRegional">0</strong></div>
+            </div>
+          </div>
+          <div class="result-vs">
+            <div class="result-vs-badge">VS</div>
+            <div class="result-global">
+              <div class="rg-item">🧯 Extinguidor: <strong id="rbExtTotal">0</strong></div>
+            </div>
+          </div>
+          <div class="result-alliance blue">
+            <div class="result-label">BLUE ALLIANCE</div>
+            <div class="result-score" id="resultBlueScore">0</div>
+            <div class="result-breakdown">
+              <div class="rb-item"><span>Supresión</span><strong id="rbBlueSup">0</strong></div>
+              <div class="rb-item"><span>×Multiplicador</span><strong id="rbBlueMult">1.00</strong></div>
+              <div class="rb-item"><span>Regional</span><strong id="rbBlueRegional">0</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Player Stats -->
+        <div class="player-stats-card">
+          <h3>📊 TUS ESTADÍSTICAS</h3>
+          <div class="ps-grid">
+            <div class="ps-item"><span>Pelotas Recogidas</span><strong id="psPickedUp">0</strong></div>
+            <div class="ps-item"><span>Pelotas Disparadas</span><strong id="psShot">0</strong></div>
+            <div class="ps-item"><span>Aciertos</span><strong id="psHits">0</strong></div>
+            <div class="ps-item"><span>Fallos</span><strong id="psMisses">0</strong></div>
+            <div class="ps-item"><span>Precisión Real</span><strong id="psAccuracy">0%</strong></div>
+            <div class="ps-item"><span>Distancia Recorrida</span><strong id="psDistance">0 m</strong></div>
+          </div>
+        </div>
+
+        <div class="results-actions">
+          <button class="result-btn primary" id="playAgainBtn">▶ Jugar Otra Vez</button>
+          <button class="result-btn secondary" id="goCalcBtn">📋 Ir a Calculadora</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Footer ═══ -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Fundación Team Colombia de Educación e Innovación Educativa — Simulador táctico FGC Incheon</p>
+    </footer>
+  </div>
+
+  <script src="simulacion.js"></script>
+</body>
+</html>
