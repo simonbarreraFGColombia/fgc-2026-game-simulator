@@ -409,7 +409,7 @@ function drawBuddyLinks(s) {
 
 function drawRobots(s) {
   const robotKeys = Object.keys(ROBOT_POS);
-  const robotRadius = s * 0.028;
+  const robotRadius = s * 0.0357;
 
   robotKeys.forEach(key => {
     const pos = ROBOT_POS[key];
@@ -510,7 +510,7 @@ function getCanvasPos(e) {
 }
 
 function hitTestRobot(mx, my) {
-  const radius = S() * 0.028;
+  const radius = S() * 0.0357;
   for (const key of Object.keys(ROBOT_POS)) {
     const rob = ROBOT_POS[key];
     if (Math.hypot(rob.x - mx, rob.y - my) <= radius + 5) return key;
@@ -1533,9 +1533,51 @@ function resetAll() {
   updateTooltip('↺ Campo reiniciado');
 }
 
+function checkSimulationRedirect() {
+  const stored = localStorage.getItem('fgc_match_result');
+  if (!stored) return;
+
+  try {
+    const data = JSON.parse(stored);
+    
+    // Apply scores
+    STATE.suppression.red = data.redBalls || 0;
+    STATE.suppression.blue = data.blueBalls || 0;
+    STATE.extinguisher = data.extBalls || 0;
+
+    // Apply robot zones & buddy status
+    const keys = ['redR1', 'redR2', 'redR3', 'blueR1', 'blueR2', 'blueR3'];
+    keys.forEach(key => {
+      if (data.robots && data.robots[key]) {
+        STATE.robots[key].zone = data.robots[key];
+        const target = getZoneY(data.robots[key], key);
+        ROBOT_POS[key].x = target.x;
+        ROBOT_POS[key].y = target.y;
+      }
+      if (data.buddies && data.buddies[key] !== undefined) {
+        STATE.robots[key].buddy = data.buddies[key];
+      }
+    });
+
+    // Sync UI elements and calculate
+    syncUIFromState();
+    recalculate();
+
+    // Clear from localStorage
+    localStorage.removeItem('fgc_match_result');
+    
+    setTimeout(() => {
+      updateTooltip('📈 ¡Resultados del simulador cargados en la calculadora!');
+    }, 500);
+  } catch (e) {
+    console.error("Error loading simulation results:", e);
+  }
+}
+
 // ── 13. INITIALIZATION ──────────────────────────────────────────
 syncUIFromState();
 recalculate();
+checkSimulationRedirect();
 
 // Touch support for mobile
 canvas.addEventListener('touchstart', (e) => {

@@ -147,18 +147,35 @@
             <div class="config-row">
               <label>Aliados</label>
               <div class="toggle-group" id="allyDifficulty">
+                <button class="toggle-btn" data-value="0.0">Nula</button>
                 <button class="toggle-btn" data-value="0.6">Básica</button>
                 <button class="toggle-btn active" data-value="0.8">Media</button>
                 <button class="toggle-btn" data-value="1.0">Fuerte</button>
               </div>
             </div>
-            <div class="config-row">
+            <div class="spec-row" style="margin-top: -2px; margin-bottom: 6px;">
+              <div class="spec-info">
+                <label>Ajuste Aliados</label>
+                <span class="spec-unit" id="allyDiffVal">0.80</span>
+              </div>
+              <input type="range" class="spec-slider" id="allyDiffSlider" min="0.0" max="1.0" step="0.05" value="0.80">
+            </div>
+
+            <div class="config-row" style="margin-top: 4px;">
               <label>Rivales</label>
               <div class="toggle-group" id="rivalDifficulty">
+                <button class="toggle-btn" data-value="0.0">Nula</button>
                 <button class="toggle-btn" data-value="0.6">Básica</button>
                 <button class="toggle-btn active" data-value="0.8">Media</button>
                 <button class="toggle-btn" data-value="1.0">Fuerte</button>
               </div>
+            </div>
+            <div class="spec-row" style="margin-top: -2px; margin-bottom: 4px;">
+              <div class="spec-info">
+                <label>Ajuste Rivales</label>
+                <span class="spec-unit" id="rivalDiffVal">0.80</span>
+              </div>
+              <input type="range" class="spec-slider" id="rivalDiffSlider" min="0.0" max="1.0" step="0.05" value="0.80">
             </div>
           </div>
 
