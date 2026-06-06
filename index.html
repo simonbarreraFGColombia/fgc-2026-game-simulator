@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Juego FGC 2026 — Team Colombia | Igniting Innovation</title>
+  <meta name="description" content="Simulador interactivo de puntuación para el FIRST Global Challenge 2026 Igniting Innovation. Calculadora visual con campo de juego tipo videojuego.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <!-- ═══ Header ═══ -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="flag-stripe yellow"></span>
+        <span class="flag-stripe blue"></span>
+        <span class="flag-stripe red"></span>
+        <h1>TEAM COLOMBIA</h1>
+      </div>
+      <nav class="nav-area">
+        <a href="index.html" class="nav-link active">Simulador</a>
+        <a href="estrategias.html" class="nav-link">Estrategias</a>
+      </nav>
+    </header>
+
+    <!-- ═══ VS Scoreboard ═══ -->
+    <div class="vs-scoreboard">
+      <div class="vs-alliance red">
+        <div class="vs-alliance-label">● RED ALLIANCE</div>
+        <div class="vs-score" id="redTotalScore">0</div>
+        <div class="vs-breakdown">
+          <span>🔥 Sup: <strong id="redSupDisplay">0</strong></span>
+          <span>⚡ ×<strong id="redMultDisplay">1.00</strong></span>
+          <span>🤝 <strong id="redPartnerDisplay">0</strong></span>
+        </div>
+      </div>
+      <div class="vs-center">
+        <div class="vs-badge">VS</div>
+        <div class="vs-global-label">Alianza Global</div>
+        <div class="vs-global-items">
+          <span>🧯 Extinguidor: <strong id="globalExtDisplay">0</strong> pts</span>
+          <span>🏆 Coopertición: <strong id="globalCooptDisplay">0</strong> pts</span>
+        </div>
+      </div>
+      <div class="vs-alliance blue">
+        <div class="vs-alliance-label">BLUE ALLIANCE ●</div>
+        <div class="vs-score" id="blueTotalScore">0</div>
+        <div class="vs-breakdown">
+          <span>🔥 Sup: <strong id="blueSupDisplay">0</strong></span>
+          <span>⚡ ×<strong id="blueMultDisplay">1.00</strong></span>
+          <span>🤝 <strong id="bluePartnerDisplay">0</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ Wildfire Pool ═══ -->
+    <div class="wildfire-pool-bar">
+      <div class="pool-label"><span class="fire-icon">🔥</span> WILDFIRE POOL</div>
+      <div class="pool-track">
+        <div class="pool-fill" id="poolFill">
+          <div class="pool-fill-red" id="poolRed"></div>
+          <div class="pool-fill-ext" id="poolExt"></div>
+          <div class="pool-fill-blue" id="poolBlue"></div>
+        </div>
+      </div>
+      <div class="pool-count"><span class="remaining" id="poolRemaining">500</span> / 500</div>
+    </div>
+
+    <!-- ═══ Timer Bar ═══ -->
+    <div class="timer-bar">
+      <button class="timer-btn" id="timerStartBtn">▶ START</button>
+      <div class="timer-display" id="timerDisplay">2:30</div>
+      <div class="timer-progress">
+        <div class="timer-progress-fill" id="timerFill" style="width:100%"></div>
+      </div>
+      <button class="timer-btn" id="timerResetBtn">↺ RESET</button>
+    </div>
+
+    <!-- ═══ Main Workspace ═══ -->
+    <div class="workspace">
+
+      <!-- ─── Left: Field + Actions ─── -->
+      <div class="field-panel">
+        <div class="card" style="padding:12px;">
+          <div class="canvas-wrapper">
+            <canvas id="fieldCanvas" width="700" height="700"></canvas>
+            <div class="canvas-tooltip" id="canvasTooltip">Arrastra robots • Doble clic = Buddy • Clic derecho = Opciones</div>
+            <div class="canvas-hud">
+              <button class="hud-btn" id="hudReplay">▶ Replay</button>
+              <button class="hud-btn" id="hudHeatmap">🗺 Heatmap</button>
+              <button class="hud-btn" id="hudExport">📷 Export</button>
+              <button class="hud-btn" id="hudReset">↺ Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Actions -->
+        <div class="field-actions">
+          <button class="action-btn" id="btnSaveConfig"><span class="icon">💾</span> Guardar Config</button>
+          <button class="action-btn" id="btnClearLeaderboard"><span class="icon">🗑</span> Limpiar Historial</button>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card leaderboard-section" id="leaderboardCard" style="display:none;">
+          <div class="card-header">
+            <h3>🏆 LEADERBOARD DE CONFIGURACIONES</h3>
+            <span class="badge">LOCAL</span>
+          </div>
+          <table class="leaderboard-table">
+            <thead>
+              <tr><th>#</th><th>Nombre</th><th>Red</th><th>Blue</th><th>Total</th></tr>
+            </thead>
+            <tbody id="leaderboardBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ─── Right: Calculator Panel ─── -->
+      <div class="calc-panel">
+
+        <!-- Preset Selector -->
+        <div class="preset-section">
+          <label>📋 Cargar Estrategia de Alumnos</label>
+          
+          <!-- Hidden native select for engine compatibility -->
+          <select id="presetSelect" style="display: none;">
+            <option value="" disabled selected>— Seleccionar escenario —</option>
+            <optgroup label="Equipo 1: Tania">
+              <option value="tania_0">Peor Escenario (Buen Robot)</option>
+              <option value="tania_1">Mismo Escenario + Rivales</option>
+              <option value="tania_2">Mejor Escenario</option>
+            </optgroup>
+            <optgroup label="Equipo 2: Moncada & Ángel">
+              <option value="moncada_0">Peor Escenario</option>
+              <option value="moncada_1">Mismo Escenario + Rivales</option>
+              <option value="moncada_2">2do Mejor Escenario</option>
+              <option value="moncada_3">Mejor Escenario</option>
+            </optgroup>
+            <optgroup label="Equipo 3: Jhon & MdlA">
+              <option value="jhon_0">Peor Escenario</option>
+              <option value="jhon_1">Mejor Escenario</option>
+            </optgroup>
+            <optgroup label="Equipo 4: Sergio">
+              <option value="team4_0">Peor Escenario</option>
+              <option value="team4_1">Mejor Escenario</option>
+            </optgroup>
+          </select>
+
+          <!-- Custom dropdown markup -->
+          <div class="custom-dropdown" id="customPresetDropdown">
+            <div class="dropdown-trigger" id="dropdownTrigger">
+              <span id="dropdownSelectedValue">— Seleccionar escenario —</span>
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            <div class="dropdown-menu" id="dropdownMenu">
+              <div class="dropdown-group">Equipo 1: Tania</div>
+              <div class="dropdown-item" data-value="tania_0">Peor Escenario (Buen Robot)</div>
+              <div class="dropdown-item" data-value="tania_1">Mismo Escenario + Rivales</div>
+              <div class="dropdown-item" data-value="tania_2">Mejor Escenario</div>
+              
+              <div class="dropdown-group">Equipo 2: Moncada & Ángel</div>
+              <div class="dropdown-item" data-value="moncada_0">Peor Escenario</div>
+              <div class="dropdown-item" data-value="moncada_1">Mismo Escenario + Rivales</div>
+              <div class="dropdown-item" data-value="moncada_2">2do Mejor Escenario</div>
+              <div class="dropdown-item" data-value="moncada_3">Mejor Escenario</div>
+              
+              <div class="dropdown-group">Equipo 3: Jhon & MdlA</div>
+              <div class="dropdown-item" data-value="jhon_0">Peor Escenario</div>
+              <div class="dropdown-item" data-value="jhon_1">Mejor Escenario</div>
+              
+              <div class="dropdown-group">Equipo 4: Sergio</div>
+              <div class="dropdown-item" data-value="team4_0">Peor Escenario</div>
+              <div class="dropdown-item" data-value="team4_1">Mejor Escenario</div>
+            </div>
+          </div>
+
+          <div class="preset-desc" id="presetDesc">Selecciona una estrategia para cargarla automáticamente en el simulador.</div>
+        </div>
+
+        <!-- ═══ RED ALLIANCE CALCULATOR ═══ -->
+        <div class="alliance-calc red-calc">
+          <div class="alliance-calc-header">
+            <div class="alliance-calc-title">● Red Alliance</div>
+            <div class="multiplier-badge" id="redMultBadge">×1.000</div>
+          </div>
+
+          <!-- Suppression Stepper -->
+          <div class="stepper-row">
+            <div class="stepper-label"><span class="icon">🔥</span> Supresión</div>
+            <div class="stepper">
+              <button class="stepper-btn" data-target="redSup" data-delta="-5">−</button>
+              <input type="number" class="stepper-value" id="redSup" value="0" min="0" max="250">
+              <button class="stepper-btn" data-target="redSup" data-delta="5">+</button>
+            </div>
+          </div>
+
+          <!-- Climb Positions -->
+          <div class="climb-section-label">⛓ Posiciones de Escalada</div>
+          <div class="climb-grid">
+            <!-- Red Robot 1 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">R1 (COL)</div>
+              <div class="zone-selector" data-robot="redR1">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="redR1Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="redR1">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+            <!-- Red Robot 2 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">R2 (Aliado)</div>
+              <div class="zone-selector" data-robot="redR2">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="redR2Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="redR2">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+            <!-- Red Robot 3 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">R3 (Aliado)</div>
+              <div class="zone-selector" data-robot="redR3">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="redR3Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="redR3">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ EXTINGUISHER (Global) ═══ -->
+        <div class="extinguisher-card">
+          <div class="ext-header">🧯 Extinguidor (Global)</div>
+          <div class="stepper-row">
+            <div class="stepper-label">Pelotas en Extinguidor</div>
+            <div class="stepper">
+              <button class="stepper-btn" data-target="extSup" data-delta="-5">−</button>
+              <input type="number" class="stepper-value" id="extSup" value="0" min="0" max="250">
+              <button class="stepper-btn" data-target="extSup" data-delta="5">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ COOPERTITION ═══ -->
+        <div class="coopertition-card">
+          <div class="coopertition-header">🏆 Coopertición</div>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div class="coopt-indicators" id="cooptDots">
+              <div class="coopt-dot" data-idx="0"></div>
+              <div class="coopt-dot" data-idx="1"></div>
+              <div class="coopt-dot" data-idx="2"></div>
+              <div class="coopt-dot" data-idx="3"></div>
+              <div class="coopt-dot" data-idx="4"></div>
+              <div class="coopt-dot" data-idx="5"></div>
+            </div>
+            <div class="coopt-bonus" id="cooptBonus">+0 pts</div>
+          </div>
+          <div class="coopt-tiers">
+            <div class="coopt-tier" data-tier="4" id="tier4">4 robots → +10</div>
+            <div class="coopt-tier" data-tier="5" id="tier5">5 robots → +25</div>
+            <div class="coopt-tier" data-tier="6" id="tier6">6 robots → +40</div>
+          </div>
+          <div class="climb-legend">
+            <div class="legend-item"><div class="legend-dot contact"></div> Contact +0.05</div>
+            <div class="legend-item"><div class="legend-dot z1"></div> Z1 +0.10</div>
+            <div class="legend-item"><div class="legend-dot z2"></div> Z2 +0.20</div>
+            <div class="legend-item"><div class="legend-dot z3"></div> Z3 +0.30</div>
+          </div>
+        </div>
+
+        <!-- ═══ BLUE ALLIANCE CALCULATOR ═══ -->
+        <div class="alliance-calc blue-calc">
+          <div class="alliance-calc-header">
+            <div class="alliance-calc-title">Blue Alliance ●</div>
+            <div class="multiplier-badge" id="blueMultBadge">×1.000</div>
+          </div>
+
+          <!-- Suppression Stepper -->
+          <div class="stepper-row">
+            <div class="stepper-label"><span class="icon">🔥</span> Supresión</div>
+            <div class="stepper">
+              <button class="stepper-btn" data-target="blueSup" data-delta="-5">−</button>
+              <input type="number" class="stepper-value" id="blueSup" value="0" min="0" max="250">
+              <button class="stepper-btn" data-target="blueSup" data-delta="5">+</button>
+            </div>
+          </div>
+
+          <!-- Climb Positions -->
+          <div class="climb-section-label">⛓ Posiciones de Escalada</div>
+          <div class="climb-grid">
+            <!-- Blue Robot 1 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">B1 (Rival)</div>
+              <div class="zone-selector" data-robot="blueR1">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="blueR1Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="blueR1">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+            <!-- Blue Robot 2 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">B2 (Rival)</div>
+              <div class="zone-selector" data-robot="blueR2">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="blueR2Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="blueR2">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+            <!-- Blue Robot 3 -->
+            <div class="robot-climb-card">
+              <div class="robot-name">B3 (Rival)</div>
+              <div class="zone-selector" data-robot="blueR3">
+                <div class="zone-opt" data-zone="none">—</div>
+                <div class="zone-opt" data-zone="contact">C</div>
+                <div class="zone-opt" data-zone="z1">Z1</div>
+                <div class="zone-opt" data-zone="z2">Z2</div>
+                <div class="zone-opt" data-zone="z3">Z3</div>
+              </div>
+              <div class="zone-bonus" id="blueR3Bonus">+0.00</div>
+              <div class="buddy-toggle" data-buddy="blueR3">
+                <div class="buddy-switch"></div>
+                <div class="buddy-label">Buddy</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /calc-panel -->
+    </div><!-- /workspace -->
+
+    <!-- ═══ Footer ═══ -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Fundación Team Colombia de Educación e Innovación Educativa — Simulador táctico FGC Incheon</p>
+    </footer>
+  </div>
+
+  <!-- Context Menu (hidden) -->
+  <div class="context-menu" id="contextMenu">
+    <div class="ctx-item" data-action="moveZ3">⬆ Mover a Zona 3</div>
+    <div class="ctx-item" data-action="moveZ2">⬆ Mover a Zona 2</div>
+    <div class="ctx-item" data-action="moveZ1">⬆ Mover a Zona 1</div>
+    <div class="ctx-item" data-action="moveContact">⬆ Mover a Contacto</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" data-action="toggleBuddy">🔗 Toggle Buddy</div>
+    <div class="ctx-item" data-action="resetRobot">↺ Resetear Robot</div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

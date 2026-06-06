@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estrategias de Alumnos FGC 2026 - Team Colombia</title>
+  <!-- Google Fonts: Montserrat (titles), Orbitron (numbers), Poppins (text) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Orbitron:wght@700;900&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header with Decoupled Navigation -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="flag-stripe yellow"></span>
+        <span class="flag-stripe blue"></span>
+        <span class="flag-stripe red"></span>
+        <h1>TEAM COLOMBIA</h1>
+      </div>
+      <nav class="nav-area">
+        <a href="index.html" class="nav-link">Simulador</a>
+        <a href="estrategias.html" class="nav-link active">Estrategias</a>
+      </nav>
+    </header>
+
+    <!-- Header Description -->
+    <section class="card">
+      <div class="card-header">
+        <h3>DASHBOARD COMPARATIVO DE ESTRATEGIAS</h3>
+        <span class="badge">TEMPORADA 2026</span>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--color-text-muted);">
+        Panel de análisis con las estrategias propuestas por los diferentes equipos de estudiantes para el reto <strong>Igniting Innovation</strong>. Las puntuaciones han sido validadas matemáticamente según el reglamento oficial.
+      </p>
+    </section>
+
+    <!-- Strategies Comparison Grid -->
+    <main class="strategies-grid">
+      
+      <!-- Team 1: Tania -->
+      <div class="team-card team-tania">
+        <div class="team-header">
+          <h3>EQUIPO 1: TANIA</h3>
+          <span class="badge">Técnico / Colgados</span>
+        </div>
+        
+        <div class="scenarios-container">
+          <!-- Worst Scenario -->
+          <div class="scenario-card worst">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Peor Escenario (Buen Robot)</span>
+              <div class="scenario-points">129 pts</div>
+            </div>
+            <p class="scenario-spec-text">El robot cuelga a un aliado (Buddy Climb) en Zona 3. El aliado también cuenta en Z3.</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>65</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>0</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.60</strong></div>
+              <div class="metric-box"><span>Partner</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Same Scenario -->
+          <div class="scenario-card same">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mismo Escenario + Rivales</span>
+              <div class="scenario-points">154 pts</div>
+            </div>
+            <p class="scenario-spec-text">Igual al peor escenario, pero los 3 rivales también escalan en Zona 3 (5 robots totales en Z3).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>65</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>0</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.60</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Best Scenario -->
+          <div class="scenario-card best">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mejor Escenario (Máximo)</span>
+              <div class="scenario-points">568 pts</div>
+            </div>
+            <p class="scenario-spec-text">Alta recolección en cancha, 50 en extinguidor. 6 robots colgados en Z3 (2 Buddy Climbs por alianza).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>225</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>50</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.90</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+40 pts</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team 2: Moncada & Ángel -->
+      <div class="team-card team-moncada">
+        <div class="team-header">
+          <h3>EQUIPO 2: MONCADA & ÁNGEL</h3>
+          <span class="badge">Equilibrio / Extinguidor</span>
+        </div>
+        
+        <div class="scenarios-container">
+          <!-- Worst Scenario -->
+          <div class="scenario-card worst">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Peor Escenario</span>
+              <div class="scenario-points">174 pts</div>
+            </div>
+            <p class="scenario-spec-text">R1 y buddy en Z3, R3 en contacto. Fuerte aporte del Humano al Extinguidor.</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>60</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>50</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.65</strong></div>
+              <div class="metric-box"><span>Partner</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Same Scenario -->
+          <div class="scenario-card same">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mismo Escenario + Rivales</span>
+              <div class="scenario-points">199 pts</div>
+            </div>
+            <p class="scenario-spec-text">Igual al anterior, pero los 3 rivales también escalan en Zona 3 (Bono Coopertición de 5 robots).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>60</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>50</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.65</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- 2nd Best Scenario -->
+          <div class="scenario-card same">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">2do Mejor Escenario</span>
+              <div class="scenario-points">343 pts</div>
+            </div>
+            <p class="scenario-spec-text">Buen volumen de pelotas, 3 aliados en Z3 (1 buddy). Gran trabajo del Humano.</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>120</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>90</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.90</strong></div>
+              <div class="metric-box"><span>Partner</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Best Scenario -->
+          <div class="scenario-card best">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mejor Escenario</span>
+              <div class="scenario-points">383 pts</div>
+            </div>
+            <p class="scenario-spec-text">Mismos colgados y pelotas del 2do mejor, agregando colgados rivales para bono de 6 robots.</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>120</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>90</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.90</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+40 pts</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team 3: Jhon & MdlA -->
+      <div class="team-card team-jhon">
+        <div class="team-header">
+          <h3>EQUIPO 3: JHON & MDLA</h3>
+          <span class="badge">Conservador / Pelota Pequeña</span>
+        </div>
+        
+        <div class="scenarios-container">
+          <!-- Worst Scenario -->
+          <div class="scenario-card worst">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Peor Escenario</span>
+              <div class="scenario-points">146 pts</div>
+            </div>
+            <p class="scenario-spec-text">Calculado con pelotas más pequeñas. 1 aliado y 3 rivales en Z3 (Bono de 4 robots = 10 pts).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>85</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>25</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.30</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+10 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Best Scenario -->
+          <div class="scenario-card best">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mejor Escenario</span>
+              <div class="scenario-points">277 pts</div>
+            </div>
+            <p class="scenario-spec-text">Cálculo prudente de pelotas, pero asume colgar 6 robots en Z3 (doble Buddy Climb por alianza).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>85</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>25</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.90</strong></div>
+              <div class="metric-box"><span>Coopertición</span><strong>+40 pts</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team 4 -->
+      <div class="team-card team-team4">
+        <div class="team-header">
+          <h3>EQUIPO 4: SERGIO</h3>
+          <span class="badge">Escalada Autónoma</span>
+        </div>
+        
+        <div class="scenarios-container">
+          <!-- Worst Scenario -->
+          <div class="scenario-card worst">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Peor Escenario</span>
+              <div class="scenario-points">211 pts</div>
+            </div>
+            <p class="scenario-spec-text">Buen volumen de pelotas en cancha. Escaladas independientes (1 en Z2, 1 en Z1, 1 en Contacto).</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>130</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>35</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.35</strong></div>
+              <div class="metric-box"><span>Partner</span><strong>0 pts</strong></div>
+            </div>
+          </div>
+
+          <!-- Best Scenario -->
+          <div class="scenario-card best">
+            <div class="scenario-top-line">
+              <span class="scenario-type-badge">Mejor Escenario</span>
+              <div class="scenario-points">531 pts</div>
+            </div>
+            <p class="scenario-spec-text">Volumen de juego masivo (245 pelotas en supresión). 2 aliados en Z3 (1 colgado) y 1 en Z2.</p>
+            <div class="spec-metrics-grid">
+              <div class="metric-box"><span>Supresión</span><strong>245</strong></div>
+              <div class="metric-box"><span>Extinguidor</span><strong>65</strong></div>
+              <div class="metric-box"><span>Escalada</span><strong>x1.80</strong></div>
+              <div class="metric-box"><span>Partner</span><strong>+25 pts</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 Fundación Team Colombia de Educación e Innovación Educativa. Diseñado para la simulación táctica del FGC Incheon.</p>
+    </footer>
+  </div>
+</body>
+</html>
