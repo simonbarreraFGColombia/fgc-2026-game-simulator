@@ -1003,6 +1003,7 @@ document.querySelectorAll('.stepper-btn').forEach(btn => {
     let val = parseInt(target.value) + delta;
     val = Math.max(parseInt(target.min), Math.min(parseInt(target.max), val));
     target.value = val;
+    enforceSumLimit(target);
     syncStateFromUI();
     recalculate();
   });
@@ -1022,12 +1023,34 @@ document.querySelectorAll('.stepper-value').forEach(input => {
     let val = parseInt(input.value) || 0;
     val = Math.max(parseInt(input.min), Math.min(parseInt(input.max), val));
     input.value = val;
+    enforceSumLimit(input);
     syncStateFromUI();
     recalculate();
   });
 });
 
 // ── Sync Functions ──
+function enforceSumLimit(changedInput) {
+  const redInput = document.getElementById('redSup');
+  const blueInput = document.getElementById('blueSup');
+  const extInput = document.getElementById('extSup');
+
+  let red = parseInt(redInput.value) || 0;
+  let blue = parseInt(blueInput.value) || 0;
+  let ext = parseInt(extInput.value) || 0;
+
+  const total = red + blue + ext;
+  if (total > 500) {
+    if (changedInput.id === 'redSup') {
+      redInput.value = 500 - blue - ext;
+    } else if (changedInput.id === 'blueSup') {
+      blueInput.value = 500 - red - ext;
+    } else if (changedInput.id === 'extSup') {
+      extInput.value = 500 - red - blue;
+    }
+  }
+}
+
 function syncStateFromUI() {
   STATE.suppression.red = parseInt(document.getElementById('redSup').value) || 0;
   STATE.suppression.blue = parseInt(document.getElementById('blueSup').value) || 0;
