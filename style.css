@@ -503,8 +503,34 @@ canvas:active { cursor: grabbing; }
   flex-direction: column;
   gap: 8px;
   padding-right: 6px;
-  max-height: calc(100vh - 180px);
+  max-height: 820px;
   overflow-y: auto;
+}
+
+.buddy-target-select {
+  background: rgba(12, 14, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--color-text-muted);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.58rem;
+  padding: 2px 4px;
+  cursor: pointer;
+  outline: none;
+  transition: var(--transition-fast);
+  max-width: 60px;
+  text-transform: uppercase;
+}
+
+.buddy-target-select:hover {
+  border-color: var(--col-yellow);
+  color: var(--color-text);
+}
+
+.buddy-target-select option {
+  background: #0c0e18;
+  color: var(--color-text);
 }
 
 /* Custom scrollbar for scrollable panels */

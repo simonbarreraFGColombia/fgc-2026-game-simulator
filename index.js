@@ -37,6 +37,18 @@ const ROBOT_NAMES = {
   blueR1: 'B1', blueR2: 'B2', blueR3: 'B3'
 };
 
+// Load robot images
+const ROBOT_IMAGES = {
+  redR1: new Image(), redR2: new Image(), redR3: new Image(),
+  blueR1: new Image(), blueR2: new Image(), blueR3: new Image()
+};
+ROBOT_IMAGES.redR1.src = 'robot_colombia.png';
+ROBOT_IMAGES.redR2.src = 'robot_ally.png';
+ROBOT_IMAGES.redR3.src = 'robot_ally.png';
+ROBOT_IMAGES.blueR1.src = 'robot_rival.png';
+ROBOT_IMAGES.blueR2.src = 'robot_rival.png';
+ROBOT_IMAGES.blueR3.src = 'robot_rival.png';
+
 // Drag state
 let dragRobot = null;
 let dragOffset = { x: 0, y: 0 };
@@ -362,23 +374,17 @@ function drawParticles(s, pad, fw) {
 }
 
 function drawBuddyLinks(s) {
-  const buddyPairs = [
-    { from: 'redR2', to: 'redR1', key: 'redR2' },
-    { from: 'redR3', to: 'redR1', key: 'redR3' },
-    { from: 'blueR2', to: 'blueR1', key: 'blueR2' },
-    { from: 'blueR3', to: 'blueR1', key: 'blueR3' },
-    { from: 'redR1', to: 'redR1', key: 'redR1', self: true },
-    { from: 'blueR1', to: 'blueR1', key: 'blueR1', self: true }
-  ];
-
+  const robotKeys = Object.keys(STATE.robots);
   const t = Date.now() / 500;
 
-  buddyPairs.forEach(bp => {
-    if (bp.self) return;
-    if (!STATE.robots[bp.key].buddy) return;
+  robotKeys.forEach(fromKey => {
+    const rob = STATE.robots[fromKey];
+    if (!rob.buddy) return;
 
-    const from = ROBOT_POS[bp.from];
-    const to = ROBOT_POS[bp.to];
+    const toKey = rob.buddy;
+    const fromPos = ROBOT_POS[fromKey];
+    const toPos = ROBOT_POS[toKey];
+    if (!fromPos || !toPos) return;
 
     // Animated golden chain
     ctx.strokeStyle = `rgba(255,215,0,${0.3 + 0.15 * Math.sin(t)})`;
@@ -386,14 +392,14 @@ function drawBuddyLinks(s) {
     ctx.setLineDash([6, 4]);
     ctx.lineDashOffset = -Date.now() / 100;
     ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.moveTo(fromPos.x, fromPos.y);
+    ctx.lineTo(toPos.x, toPos.y);
     ctx.stroke();
     ctx.setLineDash([]);
 
     // Chain icon at midpoint
-    const mx = (from.x + to.x) / 2;
-    const my = (from.y + to.y) / 2;
+    const mx = (fromPos.x + toPos.x) / 2;
+    const my = (fromPos.y + toPos.y) / 2;
     ctx.fillStyle = `rgba(255,215,0,${0.5 + 0.2 * Math.sin(t)})`;
     ctx.font = `${S() * 0.02}px sans-serif`;
     ctx.textAlign = 'center';
@@ -410,7 +416,7 @@ function drawRobots(s) {
     const color = ROBOT_COLORS[key];
     const name = ROBOT_NAMES[key];
     const zone = STATE.robots[key].zone;
-    const isBuddy = STATE.robots[key].buddy;
+    const isBuddy = !!STATE.robots[key].buddy;
     const isDragging = dragRobot === key;
 
     // Glow based on zone
@@ -428,17 +434,23 @@ function drawRobots(s) {
       ctx.shadowBlur = isDragging ? 20 : 12;
     }
 
-    // Robot body
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(pos.x, pos.y, robotRadius, 0, Math.PI * 2);
-    ctx.fill();
+    // Draw premium image if loaded
+    const img = ROBOT_IMAGES[key];
+    if (img && img.complete && img.naturalWidth !== 0) {
+      ctx.drawImage(img, pos.x - robotRadius, pos.y - robotRadius, robotRadius * 2, robotRadius * 2);
+    } else {
+      // Fallback to circle
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, robotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
     // Border
-    ctx.strokeStyle = isDragging ? '#fff' : 'rgba(255,255,255,0.6)';
+    ctx.strokeStyle = isDragging ? '#fff' : 'rgba(255,255,255,0.4)';
     ctx.lineWidth = isDragging ? 2.5 : 1.5;
     ctx.beginPath();
     ctx.arc(pos.x, pos.y, robotRadius, 0, Math.PI * 2);
@@ -453,7 +465,7 @@ function drawRobots(s) {
         z3: '#e83048'
       };
       ctx.strokeStyle = zoneRingColors[zone];
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, robotRadius + 4, 0, Math.PI * 2);
       ctx.stroke();
@@ -467,11 +479,16 @@ function drawRobots(s) {
       ctx.fillText('⛓', pos.x, pos.y - robotRadius - 6);
     }
 
-    // Name label
+    // Name label badge under the robot
+    ctx.fillStyle = 'rgba(10, 12, 20, 0.8)';
+    ctx.beginPath();
+    ctx.roundRect(pos.x - 22, pos.y + robotRadius - 2, 44, 14, 4);
+    ctx.fill();
+
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${s * 0.014}px Montserrat`;
+    ctx.font = `bold ${s * 0.011}px Montserrat`;
     ctx.textAlign = 'center';
-    ctx.fillText(name, pos.x, pos.y + 4);
+    ctx.fillText(name, pos.x, pos.y + robotRadius + 8);
   });
 }
 
@@ -570,7 +587,16 @@ canvas.addEventListener('dblclick', (e) => {
     return;
   }
 
-  STATE.robots[hit].buddy = !STATE.robots[hit].buddy;
+  if (STATE.robots[hit].buddy) {
+    STATE.robots[hit].buddy = false;
+  } else {
+    // Chain connections
+    if (hit === 'redR2') STATE.robots[hit].buddy = 'redR1';
+    else if (hit === 'redR3') STATE.robots[hit].buddy = 'redR2';
+    else if (hit === 'blueR2') STATE.robots[hit].buddy = 'blueR1';
+    else if (hit === 'blueR3') STATE.robots[hit].buddy = 'blueR2';
+  }
+
   syncUIFromState();
   recalculate();
   updateTooltip(STATE.robots[hit].buddy ? `${ROBOT_NAMES[hit]} conectado como Buddy 🔗` : `${ROBOT_NAMES[hit]} desconectado`);
@@ -668,6 +694,39 @@ const contextMenu = document.getElementById('contextMenu');
 function showContextMenu(x, y) {
   contextMenu.style.left = x + 'px';
   contextMenu.style.top = y + 'px';
+
+  // Show/hide buddy options based on robot
+  const isRed = contextRobot.startsWith('red');
+  const isHolder = contextRobot === 'redR1' || contextRobot === 'blueR1';
+  const isR3 = contextRobot === 'redR3' || contextRobot === 'blueR3';
+
+  const cR1 = document.getElementById('ctxConnectR1');
+  const cR2 = document.getElementById('ctxConnectR2');
+  const cDisc = document.getElementById('ctxDisconnect');
+  const bSep = document.getElementById('ctxBuddySep');
+
+  if (isHolder) {
+    cR1.style.display = 'none';
+    cR2.style.display = 'none';
+    cDisc.style.display = 'none';
+    bSep.style.display = 'none';
+  } else {
+    bSep.style.display = 'block';
+    cDisc.style.display = STATE.robots[contextRobot].buddy ? 'block' : 'none';
+
+    // Connect R1 / B1 option
+    cR1.style.display = STATE.robots[contextRobot].buddy === (isRed ? 'redR1' : 'blueR1') ? 'none' : 'block';
+    cR1.textContent = isRed ? '🔗 Conectar a R1 (COL)' : '🔗 Conectar a B1 (Rival)';
+
+    // Connect R2 / B2 option (only for R3 / B3)
+    if (isR3) {
+      cR2.style.display = STATE.robots[contextRobot].buddy === (isRed ? 'redR2' : 'blueR2') ? 'none' : 'block';
+      cR2.textContent = isRed ? '🔗 Conectar a R2 (Aliado)' : '🔗 Conectar a B2 (Rival)';
+    } else {
+      cR2.style.display = 'none';
+    }
+  }
+
   contextMenu.classList.add('visible');
 }
 
@@ -684,18 +743,27 @@ contextMenu.querySelectorAll('.ctx-item').forEach(item => {
   item.addEventListener('click', () => {
     if (!contextRobot) return;
     const action = item.dataset.action;
+    const isRed = contextRobot.startsWith('red');
 
     switch (action) {
       case 'moveZ3': moveRobotToZone(contextRobot, 'z3'); break;
       case 'moveZ2': moveRobotToZone(contextRobot, 'z2'); break;
       case 'moveZ1': moveRobotToZone(contextRobot, 'z1'); break;
       case 'moveContact': moveRobotToZone(contextRobot, 'contact'); break;
-      case 'toggleBuddy':
-        if (contextRobot !== 'redR1' && contextRobot !== 'blueR1') {
-          STATE.robots[contextRobot].buddy = !STATE.robots[contextRobot].buddy;
-          syncUIFromState();
-          recalculate();
-        }
+      case 'connectR1':
+        STATE.robots[contextRobot].buddy = isRed ? 'redR1' : 'blueR1';
+        syncUIFromState();
+        recalculate();
+        break;
+      case 'connectR2':
+        STATE.robots[contextRobot].buddy = isRed ? 'redR2' : 'blueR2';
+        syncUIFromState();
+        recalculate();
+        break;
+      case 'disconnectBuddy':
+        STATE.robots[contextRobot].buddy = false;
+        syncUIFromState();
+        recalculate();
         break;
       case 'resetRobot':
         STATE.robots[contextRobot].zone = 'none';
@@ -724,6 +792,27 @@ function updateTooltip(msg) {
 // ── 6. SCORING ENGINE ───────────────────────────────────────────
 const CLIMB_VALUES = { none: 0, contact: 0.05, z1: 0.10, z2: 0.20, z3: 0.30 };
 
+function isRobotSupported(key) {
+  const rob = STATE.robots[key];
+  if (!rob || !rob.buddy) return false;
+
+  let current = rob.buddy;
+  const visited = new Set();
+  while (current) {
+    if (visited.has(current)) break; // Prevent loops
+    visited.add(current);
+
+    const parent = STATE.robots[current];
+    if (!parent) return false;
+
+    // If parent is climbing, the chain is valid
+    if (parent.zone !== 'none') return true;
+
+    current = parent.buddy;
+  }
+  return false;
+}
+
 function recalculate() {
   const redBalls = STATE.suppression.red;
   const blueBalls = STATE.suppression.blue;
@@ -740,9 +829,9 @@ function recalculate() {
     CLIMB_VALUES[STATE.robots.blueR2.zone] +
     CLIMB_VALUES[STATE.robots.blueR3.zone];
 
-  // Partner climbs
-  const redPartners = [STATE.robots.redR1.buddy, STATE.robots.redR2.buddy, STATE.robots.redR3.buddy].filter(Boolean).length;
-  const bluePartners = [STATE.robots.blueR1.buddy, STATE.robots.blueR2.buddy, STATE.robots.blueR3.buddy].filter(Boolean).length;
+  // Partner climbs (recursive verification)
+  const redPartners = ['redR2', 'redR3'].filter(isRobotSupported).length;
+  const bluePartners = ['blueR2', 'blueR3'].filter(isRobotSupported).length;
   const redPartnerPts = redPartners * 25;
   const bluePartnerPts = bluePartners * 25;
 
@@ -868,11 +957,43 @@ document.querySelectorAll('.buddy-toggle').forEach(toggle => {
       updateTooltip('R1/B1 sostiene buddies, no puede ser buddy');
       return;
     }
-    STATE.robots[robotKey].buddy = !STATE.robots[robotKey].buddy;
+    
+    if (STATE.robots[robotKey].buddy) {
+      STATE.robots[robotKey].buddy = false;
+    } else {
+      if (robotKey === 'redR3') {
+        STATE.robots[robotKey].buddy = document.getElementById('redR3Target').value || 'redR1';
+      } else if (robotKey === 'blueR3') {
+        STATE.robots[robotKey].buddy = document.getElementById('blueR3Target').value || 'blueR1';
+      } else {
+        STATE.robots[robotKey].buddy = robotKey.startsWith('red') ? 'redR1' : 'blueR1';
+      }
+    }
     syncUIFromState();
     recalculate();
   });
 });
+
+// Buddy Target Selects
+const redR3Target = document.getElementById('redR3Target');
+if (redR3Target) {
+  redR3Target.addEventListener('change', (e) => {
+    if (STATE.robots.redR3.buddy) {
+      STATE.robots.redR3.buddy = e.target.value;
+      recalculate();
+    }
+  });
+}
+
+const blueR3Target = document.getElementById('blueR3Target');
+if (blueR3Target) {
+  blueR3Target.addEventListener('change', (e) => {
+    if (STATE.robots.blueR3.buddy) {
+      STATE.robots.blueR3.buddy = e.target.value;
+      recalculate();
+    }
+  });
+}
 
 // Steppers
 document.querySelectorAll('.stepper-btn').forEach(btn => {
@@ -928,7 +1049,20 @@ function syncUIFromState() {
     // Buddy toggles
     const buddyToggle = document.querySelector(`.buddy-toggle[data-buddy="${key}"]`);
     if (buddyToggle) {
-      buddyToggle.classList.toggle('active', STATE.robots[key].buddy);
+      buddyToggle.classList.toggle('active', !!STATE.robots[key].buddy);
+    }
+
+    // Target selects show/hide and sync
+    if (key === 'redR3' || key === 'blueR3') {
+      const targetSelect = document.getElementById(key + 'Target');
+      if (targetSelect) {
+        if (STATE.robots[key].buddy) {
+          targetSelect.style.display = 'block';
+          targetSelect.value = STATE.robots[key].buddy;
+        } else {
+          targetSelect.style.display = 'none';
+        }
+      }
     }
   });
 
@@ -1085,7 +1219,18 @@ function applyPreset(preset) {
   // Reset all
   Object.keys(STATE.robots).forEach(key => {
     STATE.robots[key].zone = preset.robots[key] || 'none';
-    STATE.robots[key].buddy = preset.buddies?.[key] || false;
+    
+    const hasBuddy = preset.buddies?.[key] || false;
+    if (hasBuddy) {
+      if (typeof hasBuddy === 'string') {
+        STATE.robots[key].buddy = hasBuddy;
+      } else {
+        // Fallback: connect to default R1/B1
+        STATE.robots[key].buddy = key.startsWith('red') ? 'redR1' : 'blueR1';
+      }
+    } else {
+      STATE.robots[key].buddy = false;
+    }
   });
 
   STATE.suppression.red = preset.red;
@@ -1272,7 +1417,7 @@ document.getElementById('hudReplay').addEventListener('click', () => {
     { delay: 3600, action: () => { moveRobotToZone('redR1', 'z2'); } },
     { delay: 4000, action: () => { moveRobotToZone('redR2', 'z1'); moveRobotToZone('blueR1', 'z2'); } },
     { delay: 4500, action: () => { moveRobotToZone('redR1', 'z3'); updateTooltip('🏆 ¡R1 alcanza Zona 3!'); } },
-    { delay: 5000, action: () => { STATE.robots.redR2.buddy = true; moveRobotToZone('redR2', 'z3'); syncUIFromState(); recalculate(); updateTooltip('🔗 ¡Buddy Climb activado!'); } },
+    { delay: 5000, action: () => { STATE.robots.redR2.buddy = 'redR1'; moveRobotToZone('redR2', 'z3'); syncUIFromState(); recalculate(); updateTooltip('🔗 ¡Buddy Climb activado!'); } },
     { delay: 5500, action: () => { moveRobotToZone('blueR1', 'z3'); syncUIFromState(); recalculate(); updateTooltip('▶ Replay completo'); } }
   ];
 

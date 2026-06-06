@@ -230,7 +230,7 @@
               <div class="zone-bonus" id="redR2Bonus">+0.00</div>
               <div class="buddy-toggle" data-buddy="redR2">
                 <div class="buddy-switch"></div>
-                <div class="buddy-label">Buddy</div>
+                <div class="buddy-label">Buddy (de R1)</div>
               </div>
             </div>
             <!-- Red Robot 3 -->
@@ -244,9 +244,15 @@
                 <div class="zone-opt" data-zone="z3">Z3</div>
               </div>
               <div class="zone-bonus" id="redR3Bonus">+0.00</div>
-              <div class="buddy-toggle" data-buddy="redR3">
-                <div class="buddy-switch"></div>
-                <div class="buddy-label">Buddy</div>
+              <div class="buddy-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 4px;">
+                <div class="buddy-toggle" data-buddy="redR3" style="flex: 1; min-width: 0;">
+                  <div class="buddy-switch"></div>
+                  <div class="buddy-label">Buddy</div>
+                </div>
+                <select class="buddy-target-select" id="redR3Target">
+                  <option value="redR1">de R1</option>
+                  <option value="redR2">de R2</option>
+                </select>
               </div>
             </div>
           </div>
@@ -328,7 +334,7 @@
                 <div class="buddy-label">Buddy</div>
               </div>
             </div>
-            <!-- Blue Robot 2 -->
+             <!-- Blue Robot 2 -->
             <div class="robot-climb-card">
               <div class="robot-name">B2 (Rival)</div>
               <div class="zone-selector" data-robot="blueR2">
@@ -341,7 +347,7 @@
               <div class="zone-bonus" id="blueR2Bonus">+0.00</div>
               <div class="buddy-toggle" data-buddy="blueR2">
                 <div class="buddy-switch"></div>
-                <div class="buddy-label">Buddy</div>
+                <div class="buddy-label">Buddy (de B1)</div>
               </div>
             </div>
             <!-- Blue Robot 3 -->
@@ -355,9 +361,15 @@
                 <div class="zone-opt" data-zone="z3">Z3</div>
               </div>
               <div class="zone-bonus" id="blueR3Bonus">+0.00</div>
-              <div class="buddy-toggle" data-buddy="blueR3">
-                <div class="buddy-switch"></div>
-                <div class="buddy-label">Buddy</div>
+              <div class="buddy-row" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 4px;">
+                <div class="buddy-toggle" data-buddy="blueR3" style="flex: 1; min-width: 0;">
+                  <div class="buddy-switch"></div>
+                  <div class="buddy-label">Buddy</div>
+                </div>
+                <select class="buddy-target-select" id="blueR3Target">
+                  <option value="blueR1">de B1</option>
+                  <option value="blueR2">de B2</option>
+                </select>
               </div>
             </div>
           </div>
@@ -379,7 +391,10 @@
     <div class="ctx-item" data-action="moveZ1">⬆ Mover a Zona 1</div>
     <div class="ctx-item" data-action="moveContact">⬆ Mover a Contacto</div>
     <div class="ctx-sep"></div>
-    <div class="ctx-item" data-action="toggleBuddy">🔗 Toggle Buddy</div>
+    <div class="ctx-item" id="ctxConnectR1" data-action="connectR1">🔗 Conectar a R1 / B1</div>
+    <div class="ctx-item" id="ctxConnectR2" data-action="connectR2">🔗 Conectar a R2 / B2</div>
+    <div class="ctx-item" id="ctxDisconnect" data-action="disconnectBuddy">🔗 Desconectar Buddy</div>
+    <div class="ctx-sep" id="ctxBuddySep"></div>
     <div class="ctx-item" data-action="resetRobot">↺ Resetear Robot</div>
   </div>
 
