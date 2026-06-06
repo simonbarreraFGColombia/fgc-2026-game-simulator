@@ -784,3 +784,31 @@ body:has(.sim-app) {
   .gs-score { font-size: 1.4rem; }
   .gs-timer { font-size: 1.2rem; }
 }
+
+/* ── Screen-Maximizer Rules for Active Match ─────────────────── */
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) {
+  padding: 4px 8px;
+  gap: 4px;
+}
+
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) .app-header {
+  padding: 4px 12px;
+  margin-bottom: 0;
+}
+
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) .app-header h1 {
+  font-size: 0.95rem;
+}
+
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) .app-header .nav-area {
+  display: none;
+}
+
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) .app-footer {
+  display: none;
+}
+
+.sim-app:has(#gameScreen:not([style*="display: none"]):not([style*="display:none"])) .game-container {
+  grid-template-columns: 240px 1fr 240px;
+  gap: 12px;
+}

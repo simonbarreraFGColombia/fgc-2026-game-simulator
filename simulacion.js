@@ -805,7 +805,8 @@ function updateBotAI(robot, dt) {
       if (r.isInShootZone() && r.inventory.length > 0) {
         r.aiState = 'shooting';
       } else {
-        moveToward(r, target.x, target.y + 0.5, dt);
+        const driveX = r.alliance === 'red' ? 1.5 : 5.5;
+        moveToward(r, driveX, target.y + 0.5, dt);
       }
       break;
     }
