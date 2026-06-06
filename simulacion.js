@@ -1924,9 +1924,9 @@ function endMatch() {
 }
 
 function showPhase(phase) {
-  document.getElementById('setupScreen').style.display = phase === 'setup' ? 'block' : 'none';
-  document.getElementById('gameScreen').style.display = phase === 'game' ? 'block' : 'none';
-  document.getElementById('resultsScreen').style.display = phase === 'results' ? 'block' : 'none';
+  document.getElementById('setupScreen').style.display = phase === 'setup' ? 'flex' : 'none';
+  document.getElementById('gameScreen').style.display = phase === 'game' ? 'flex' : 'none';
+  document.getElementById('resultsScreen').style.display = phase === 'results' ? 'flex' : 'none';
 }
 
 function updateResultsStatsUI() {
