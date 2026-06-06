@@ -301,80 +301,229 @@ body:has(.sim-app) {
    IN-GAME SCREEN
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Game Scoreboard ─────────────────────────────────────────── */
-.game-scoreboard {
+/* ── Game Layout Grid ─────────────────────────────────────────── */
+.game-container {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 280px 1fr 280px;
+  gap: 16px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 1000px) {
+  .game-container {
+    grid-template-columns: 1fr;
+    height: auto;
+    overflow-y: auto;
+  }
+}
+
+/* ── Game Sidebars ───────────────────────────────────────────── */
+.game-sidebar {
   background: var(--color-surface);
-  backdrop-filter: blur(20px);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  overflow: hidden;
-  height: 52px;
-  flex-shrink: 0;
-}
-
-.gs-alliance {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 5px 20px;
-}
-
-.gs-alliance.red { justify-content: flex-start; border-left: 3px solid var(--red-main); }
-.gs-alliance.blue { justify-content: flex-end; border-right: 3px solid var(--blue-main); }
-
-.gs-label {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 0.65rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.gs-alliance.red .gs-label { color: var(--red-light); }
-.gs-alliance.blue .gs-label { color: var(--blue-light); }
-
-.gs-score {
-  font-family: var(--font-score);
-  font-weight: 900;
-  font-size: 1.8rem;
-  line-height: 1;
-}
-.gs-alliance.red .gs-score { color: var(--red-main); text-shadow: var(--glow-red); }
-.gs-alliance.blue .gs-score { color: var(--blue-main); text-shadow: var(--glow-blue); }
-
-.gs-center {
+  border-radius: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 24px;
-  background: rgba(255,215,0,0.03);
-  border-left: 1px solid var(--color-border);
-  border-right: 1px solid var(--color-border);
-  min-width: 120px;
+  gap: 12px;
+  box-sizing: border-box;
 }
 
-.gs-timer {
+.game-sidebar.red {
+  border-left: 3px solid var(--red-main);
+}
+
+.game-sidebar.blue {
+  border-right: 3px solid var(--blue-main);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.sidebar-header h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+}
+
+.sidebar-main-score {
+  text-align: center;
+  padding: 10px 0;
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.02);
+}
+
+.sidebar-score-val {
+  font-family: var(--font-score);
+  font-weight: 900;
+  font-size: 2.8rem;
+  line-height: 1;
+}
+
+.game-sidebar.red .sidebar-score-val {
+  color: var(--red-main);
+  text-shadow: var(--glow-red);
+}
+
+.game-sidebar.blue .sidebar-score-val {
+  color: var(--blue-main);
+  text-shadow: var(--glow-blue);
+}
+
+.sidebar-score-lbl {
+  font-size: 0.58rem;
+  color: var(--color-text-dim);
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+.sidebar-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.68rem;
+  padding: 6px 8px;
+  background: rgba(255,255,255,0.01);
+  border-radius: 6px;
+}
+
+.sidebar-stat-item span {
+  color: var(--color-text-muted);
+}
+
+.sidebar-stat-item strong {
+  font-family: var(--font-score);
+  color: var(--color-text);
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+/* ── Player HUD Card ─────────────────────────────────────────── */
+.player-hud-card {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.player-hud-card h3 {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.game-sidebar.red .player-hud-card h3 { color: var(--col-yellow); }
+.game-sidebar.blue .player-hud-card h3 { color: var(--blue-light); }
+
+.hud-field {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+}
+
+.hud-lbl {
+  color: var(--color-text-dim);
+}
+
+.hud-val {
+  font-family: var(--font-score);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.controls-kbd {
+  margin-top: 6px;
+  font-size: 0.58rem;
+  color: var(--color-text-dim);
+  line-height: 1.6;
+}
+
+.controls-kbd kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-family: var(--font-score);
+  font-size: 0.55rem;
+  color: var(--color-text-muted);
+  min-width: 14px;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+/* ── Game Center & Canvas ────────────────────────────────────── */
+.game-center {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.center-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px 20px;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.center-timer {
   font-family: var(--font-score);
   font-weight: 900;
   font-size: 1.5rem;
   color: var(--color-text);
-  transition: color 0.3s;
-  line-height: 1.1;
-}
-
-.gs-timer.warning { color: var(--col-yellow); }
-.gs-timer.critical { color: var(--red-main); animation: pulse 0.5s infinite; }
-
-.gs-ext {
-  font-size: 0.6rem;
-  color: var(--col-yellow);
-  font-weight: 600;
+  text-align: center;
   line-height: 1;
 }
 
-/* ── Game Canvas ─────────────────────────────────────────────── */
+.center-timer.warning { color: var(--col-yellow); }
+.center-timer.critical { color: var(--red-main); animation: pulse 0.5s infinite; }
+
+.center-ext-score {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--col-yellow);
+}
+
+.center-field-balls {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .game-canvas-wrapper {
   position: relative;
   flex: 1;
@@ -422,68 +571,6 @@ body:has(.sim-app) {
   0% { transform: scale(0.5); opacity: 0; }
   30% { transform: scale(1.1); opacity: 1; }
   100% { transform: scale(1); opacity: 0.8; }
-}
-
-/* ── HUD Bar ─────────────────────────────────────────────────── */
-.game-hud {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--color-surface);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 6px 16px;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  height: 42px;
-}
-
-.hud-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hud-icon { font-size: 1rem; }
-
-.hud-label {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.6rem;
-  color: var(--color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.hud-value {
-  font-family: var(--font-score);
-  font-weight: 700;
-  font-size: 0.8rem;
-  color: var(--col-yellow);
-}
-
-.hud-controls {
-  margin-left: auto;
-  font-size: 0.62rem;
-  color: var(--color-text-dim);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.hud-controls kbd {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  font-family: var(--font-score);
-  font-size: 0.6rem;
-  color: var(--color-text-muted);
-  min-width: 20px;
-  text-align: center;
 }
 
 /* ═══════════════════════════════════════════════════════════════

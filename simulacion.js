@@ -7,6 +7,7 @@
 const FIELD_M = 7;          // Field size in meters
 const CANVAS_BASE = 700;    // Base canvas pixels
 const MATCH_DURATION = 150; // 2:30 in seconds
+const S = cEl => parseFloat(cEl.style.width) || cEl.width;
 const TOTAL_BALLS = 500;
 const BALL_RADIUS_M = 0.05; // 50mm radius (10cm diameter)
 const ROBOT_SIZE_M = 0.50;  // 50cm side (official size)
@@ -25,8 +26,8 @@ const ZONES = {
   // Smaller fire shields at the bottom corners
   fireShieldRed:  { x: 0.0,   y: 6.4, w: 0.6, h: 0.6 },
   fireShieldBlue: { x: 6.4,   y: 6.4, w: 0.6, h: 0.6 },
-  shootRedZone:   { x: 0.0,   y: 0.2, w: 1.8, h: 2.8 },
-  shootBlueZone:  { x: 5.2,   y: 0.2, w: 1.8, h: 2.8 },
+  shootRedZone:   { x: 0.0,   y: 0.2, w: 1.8, h: 2.0 },
+  shootBlueZone:  { x: 5.2,   y: 0.2, w: 1.8, h: 2.0 },
   fsRedZone:      { x: 0.0,   y: 5.8, w: 0.9, h: 1.2 },
   fsBlueZone:     { x: 6.1,   y: 5.8, w: 0.9, h: 1.2 },
 };
@@ -521,7 +522,7 @@ function inContactZone(robot) {
   const brace = BRACES[robot.alliance];
   const dx = robot.x - brace.startX;
   const dy = robot.y - brace.startY;
-  return Math.sqrt(dx*dx + dy*dy) < 0.75;
+  return Math.sqrt(dx*dx + dy*dy) < 0.45;
 }
 
 // ── 7. PLAYER INPUT ──────────────────────────────────────────────
@@ -744,9 +745,23 @@ function updateBotAI(robot, dt) {
   r.shootCooldown = Math.max(0, r.shootCooldown - dt);
   r.aiWait = Math.max(0, r.aiWait - dt);
 
-  // Late Match: Rush to climb ramp
-  if (matchTime <= 20) {
+  // Climbing trigger conditions
+  const fieldBallsCount = balls.filter(b => b.state === 'field').length;
+  const shouldClimb = (matchTime <= 30) || (fieldBallsCount === 0);
+
+  if (shouldClimb) {
     r.aiState = 'seek_climb';
+  } else {
+    // If not allowed to climb, and currently trying to climb, reset
+    if (r.aiState === 'seek_climb') {
+      r.aiState = 'seek_balls';
+    }
+    if (r.state === 'climbing') {
+      r.state = 'idle';
+      r.climbT = 0.0;
+      r.isBuddy = false;
+      r.buddyOf = null;
+    }
   }
 
   if (r.aiWait > 0) return;
@@ -845,6 +860,15 @@ function updateBotAI(robot, dt) {
     }
 
     case 'seek_climb': {
+      // Check if climbing is allowed
+      const fieldBallsCount = balls.filter(b => b.state === 'field').length;
+      const shouldClimb = (matchTime <= 30) || (fieldBallsCount === 0);
+      if (!shouldClimb) {
+        r.aiState = 'seek_balls';
+        r.state = 'idle';
+        r.climbT = 0.0;
+        break;
+      }
       const brace = BRACES[r.alliance];
       const dist = Math.hypot(r.x - brace.startX, r.y - brace.startY);
       if (dist < 0.45) {
@@ -1122,39 +1146,44 @@ function resizeSetupCanvas() {
   setupCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-function S(cEl) {
-  const activeCanvas = cEl || gameCanvas;
-  return parseFloat(activeCanvas.style.width) || CANVAS_BASE;
+function mToP(m, cEl) {
+  const s = S(cEl);
+  const pad = s * 0.08;
+  const fw = s - pad * 2;
+  return pad + (m / FIELD_M) * fw;
 }
 
-function mToP(m, cEl) {
-  return (m / FIELD_M) * S(cEl);
+function sizeToP(m, cEl) {
+  const s = S(cEl);
+  const pad = s * 0.08;
+  const fw = s - pad * 2;
+  return (m / FIELD_M) * fw;
 }
 
 // Draw the static field layout on any canvas context
 function drawFieldBase(c, cEl) {
   const s = S(cEl);
+  const pad = s * 0.08;
+  const fw = s - pad * 2;
   c.clearRect(0, 0, s, s);
-
-  function m2p(m) { return (m / FIELD_M) * s; }
 
   // Background
   c.fillStyle = COL.fieldBg;
   c.fillRect(0, 0, s, s);
 
-  // Rejilla
+  // Rejilla (grid inside padded area)
   c.strokeStyle = COL.gridLine;
   c.lineWidth = 0.5;
   for (let i = 0; i <= 14; i++) {
-    const p = (i / 14) * s;
-    c.beginPath(); c.moveTo(p, 0); c.lineTo(p, s); c.stroke();
-    c.beginPath(); c.moveTo(0, p); c.lineTo(s, p); c.stroke();
+    const p = pad + (i / 14) * fw;
+    c.beginPath(); c.moveTo(p, pad); c.lineTo(p, pad + fw); c.stroke();
+    c.beginPath(); c.moveTo(pad, p); c.lineTo(pad + fw, p); c.stroke();
   }
 
-  // Border
+  // Border of the playing field
   c.strokeStyle = 'rgba(255,255,255,0.08)';
   c.lineWidth = 2;
-  c.strokeRect(1, 1, s - 2, s - 2);
+  c.strokeRect(pad, pad, fw, fw);
 
   // Zonas de Disparo y Fire Shields
   drawZoneCtx(c, ZONES.shootRedZone, 'rgba(232,48,72,0.04)', 'rgba(232,48,72,0.08)', cEl);
@@ -1183,22 +1212,20 @@ function drawFieldBase(c, cEl) {
 }
 
 function drawZoneCtx(c, zone, fill, stroke, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
   c.fillStyle = fill;
   c.strokeStyle = stroke;
   c.lineWidth = 1;
   c.setLineDash([4, 4]);
-  c.fillRect(m2p(zone.x), m2p(zone.y), m2p(zone.w), m2p(zone.h));
-  c.strokeRect(m2p(zone.x), m2p(zone.y), m2p(zone.w), m2p(zone.h));
+  c.fillRect(mToP(zone.x, cEl), mToP(zone.y, cEl), sizeToP(zone.w, cEl), sizeToP(zone.h, cEl));
+  c.strokeRect(mToP(zone.x, cEl), mToP(zone.y, cEl), sizeToP(zone.w, cEl), sizeToP(zone.h, cEl));
   c.setLineDash([]);
 }
 
 function drawSuppressionUnitCtx(c, zone, fill, textColor, label, count, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
-  const px = m2p(zone.x);
-  const py = m2p(zone.y);
-  const pw = m2p(zone.w);
-  const ph = m2p(zone.h);
+  const px = mToP(zone.x, cEl);
+  const py = mToP(zone.y, cEl);
+  const pw = sizeToP(zone.w, cEl);
+  const ph = sizeToP(zone.h, cEl);
 
   c.fillStyle = fill;
   c.fillRect(px, py, pw, ph);
@@ -1216,12 +1243,11 @@ function drawSuppressionUnitCtx(c, zone, fill, textColor, label, count, cEl) {
 }
 
 function drawExtinguisherCtx(c, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
   const z = ZONES.extinguisher;
-  const px = m2p(z.x);
-  const py = m2p(z.y);
-  const pw = m2p(z.w);
-  const ph = m2p(z.h);
+  const px = mToP(z.x, cEl);
+  const py = mToP(z.y, cEl);
+  const pw = sizeToP(z.w, cEl);
+  const ph = sizeToP(z.h, cEl);
 
   c.fillStyle = COL.extZone;
   c.strokeStyle = 'rgba(255,215,0,0.2)';
@@ -1240,11 +1266,10 @@ function drawExtinguisherCtx(c, cEl) {
 }
 
 function drawFireShieldCtx(c, zone, color, icon, label, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
-  const px = m2p(zone.x);
-  const py = m2p(zone.y);
-  const pw = m2p(zone.w);
-  const ph = m2p(zone.h);
+  const px = mToP(zone.x, cEl);
+  const py = mToP(zone.y, cEl);
+  const pw = sizeToP(zone.w, cEl);
+  const ph = sizeToP(zone.h, cEl);
 
   c.fillStyle = color;
   c.fillRect(px, py, pw, ph);
@@ -1261,17 +1286,16 @@ function drawFireShieldCtx(c, zone, color, icon, label, cEl) {
 }
 
 function drawBraceCtx(c, alliance, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
   const isRed = alliance === 'red';
   const brace = BRACES[alliance];
-  const px1 = m2p(brace.startX);
-  const py1 = m2p(brace.startY);
-  const px2 = m2p(brace.endX);
-  const py2 = m2p(brace.endY);
+  const px1 = mToP(brace.startX, cEl);
+  const py1 = mToP(brace.startY, cEl);
+  const px2 = mToP(brace.endX, cEl);
+  const py2 = mToP(brace.endY, cEl);
   
   // Metal tube background
   c.strokeStyle = 'rgba(90, 100, 110, 0.4)';
-  c.lineWidth = 10;
+  c.lineWidth = sizeToP(0.1, cEl) || 6;
   c.beginPath();
   c.moveTo(px1, py1);
   c.lineTo(px2, py2);
@@ -1279,7 +1303,7 @@ function drawBraceCtx(c, alliance, cEl) {
   
   // Alliance heat shrink cover
   c.strokeStyle = isRed ? 'rgba(232, 48, 72, 0.7)' : 'rgba(51, 119, 255, 0.7)';
-  c.lineWidth = 6;
+  c.lineWidth = sizeToP(0.06, cEl) || 4;
   c.beginPath();
   c.moveTo(px1, py1);
   c.lineTo(px2, py2);
@@ -1297,16 +1321,16 @@ function drawBraceCtx(c, alliance, cEl) {
     const ny = dx / len;
     
     c.strokeStyle = '#ffffff';
-    c.lineWidth = 2.5;
+    c.lineWidth = sizeToP(0.025, cEl) || 2;
     c.beginPath();
-    c.moveTo(m2p(tx - nx * 0.12), m2p(ty - ny * 0.12));
-    c.lineTo(m2p(tx + nx * 0.12), m2p(ty + ny * 0.12));
+    c.moveTo(mToP(tx - nx * 0.12, cEl), mToP(ty - ny * 0.12, cEl));
+    c.lineTo(mToP(tx + nx * 0.12, cEl), mToP(ty + ny * 0.12, cEl));
     c.stroke();
   });
   
   // Zone labels along braces
   c.fillStyle = 'rgba(255,255,255,0.45)';
-  c.font = 'bold 8px Montserrat';
+  c.font = `bold ${S(cEl) * 0.011}px Montserrat`;
   c.textAlign = 'center';
   
   const labelT = [0.165, 0.495, 0.825];
@@ -1314,29 +1338,28 @@ function drawBraceCtx(c, alliance, cEl) {
   labelT.forEach((t, i) => {
     const tx = brace.startX + (brace.endX - brace.startX) * t;
     const ty = brace.startY + (brace.endY - brace.startY) * t;
-    c.fillText(labelNames[i], m2p(tx + (isRed ? -0.22 : 0.22)), m2p(ty) + 3);
+    c.fillText(labelNames[i], mToP(tx + (isRed ? -0.22 : 0.22), cEl), mToP(ty, cEl) + 3);
   });
 }
 
 function drawContactZoneCtx(c, alliance, cEl) {
-  function m2p(m) { return (m / FIELD_M) * S(cEl); }
   const isRed = alliance === 'red';
   const brace = BRACES[alliance];
-  const px = m2p(brace.startX);
-  const py = m2p(brace.startY);
+  const px = mToP(brace.startX, cEl);
+  const py = mToP(brace.startY, cEl);
   
   c.strokeStyle = isRed ? 'rgba(232, 48, 72, 0.35)' : 'rgba(51, 119, 255, 0.35)';
   c.fillStyle = isRed ? 'rgba(232, 48, 72, 0.05)' : 'rgba(51, 119, 255, 0.05)';
   c.lineWidth = 1.5;
   c.beginPath();
-  c.arc(px, py, m2p(0.65), 0, Math.PI * 2);
+  c.arc(px, py, sizeToP(0.40, cEl), 0, Math.PI * 2);
   c.fill();
   c.stroke();
   
   c.fillStyle = isRed ? 'rgba(232, 48, 72, 0.5)' : 'rgba(51, 119, 255, 0.5)';
-  c.font = 'bold 9px Montserrat';
+  c.font = `bold ${S(cEl) * 0.013}px Montserrat`;
   c.textAlign = 'center';
-  c.fillText('C', px, py + 3);
+  c.fillText('C', px, py + 4);
 }
 
 function renderGame() {
@@ -1357,13 +1380,13 @@ function renderGame() {
   renderBalls(c, gameCanvas);
 
   // Golden chain links for supported buddy robots
-  renderGoldenChains(c);
+  renderGoldenChains(c, gameCanvas);
 
   // Active Human player thrown balls
-  renderHPThrownBalls(c);
+  renderHPThrownBalls(c, gameCanvas);
 
   // Splash particles
-  renderSplashes(c);
+  renderSplashes(c, gameCanvas);
 
   // Robots
   renderRobots(c, gameCanvas);
@@ -1385,7 +1408,7 @@ function drawGuardrails(c, cEl) {
 
 function drawHumanPlayer(c, alliance, cEl) {
   const isRed = alliance === 'red';
-  const x = isRed ? -0.3 : FIELD_M + 0.3;
+  const x = isRed ? -0.35 : FIELD_M + 0.35; // slightly further out to ensure it's not on the line
   const y = 6.3;
   const px = mToP(x, cEl);
   const py = mToP(y, cEl);
@@ -1394,6 +1417,7 @@ function drawHumanPlayer(c, alliance, cEl) {
   const throwTimer = isRed ? hpRedThrowTimer : hpBlueThrowTimer;
 
   const emoji = throwTimer > 0 ? '🙆‍♂️' : '🧑';
+  const sSize = S(cEl);
 
   c.save();
   if (throwTimer > 0) {
@@ -1402,25 +1426,33 @@ function drawHumanPlayer(c, alliance, cEl) {
     c.translate(-px, -py);
   }
 
-  c.font = `${S(cEl) * 0.03}px sans-serif`;
+  // Draw Emoji
+  c.font = `${sSize * 0.045}px sans-serif`;
   c.textAlign = 'center';
+  c.textBaseline = 'middle';
   c.fillText(emoji, px, py);
   c.restore();
 
+  // Draw Queue Length if any
   if (queue.length > 0) {
     c.fillStyle = '#ffd700';
-    c.font = `bold ${S(cEl) * 0.012}px Orbitron`;
-    c.fillText(`${queue.length}`, px, py + 18);
+    c.font = `bold ${sSize * 0.014}px Orbitron`;
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    c.fillText(`${queue.length}`, px, py + sSize * 0.03);
   }
 
-  c.fillStyle = isRed ? 'rgba(232,48,72,0.3)' : 'rgba(51,119,255,0.3)';
-  c.font = `${S(cEl) * 0.008}px Montserrat`;
-  c.fillText('HUMAN', px, py - 14);
-  c.fillText('PLAYER', px, py - 6);
+  // Draw "HUMAN PLAYER" label above emoji
+  c.fillStyle = isRed ? 'rgba(232,48,72,0.6)' : 'rgba(51,119,255,0.6)';
+  c.font = `bold ${sSize * 0.014}px Montserrat`;
+  c.textAlign = 'center';
+  c.textBaseline = 'bottom';
+  c.fillText('HUMAN', px, py - sSize * 0.035);
+  c.fillText('PLAYER', px, py - sSize * 0.02);
 }
 
 function renderBalls(c, cEl) {
-  const ballR = Math.max(2, mToP(BALL_RADIUS_M, cEl));
+  const ballR = Math.max(2, sizeToP(BALL_RADIUS_M, cEl));
   balls.forEach(b => {
     if (b.state === 'field') {
       c.fillStyle = COL.ball;
@@ -1449,8 +1481,8 @@ function renderBalls(c, cEl) {
   });
 }
 
-function renderHPThrownBalls(c) {
-  const ballR = Math.max(2, mToP(BALL_RADIUS_M));
+function renderHPThrownBalls(c, cEl) {
+  const ballR = Math.max(2, sizeToP(BALL_RADIUS_M, cEl));
   activeThrows.forEach(th => {
     const sizeScale = 1.0 + Math.sin(th.t * Math.PI) * 0.9;
     
@@ -1458,35 +1490,35 @@ function renderHPThrownBalls(c) {
     c.shadowColor = 'rgba(255,179,71,0.6)';
     c.shadowBlur = 8;
     c.beginPath();
-    c.arc(mToP(th.x), mToP(th.y), ballR * sizeScale, 0, Math.PI * 2);
+    c.arc(mToP(th.x, cEl), mToP(th.y, cEl), ballR * sizeScale, 0, Math.PI * 2);
     c.fill();
     c.shadowColor = 'transparent';
     c.shadowBlur = 0;
   });
 }
 
-function renderSplashes(c) {
+function renderSplashes(c, cEl) {
   visualSplashes.forEach(s => {
     c.fillStyle = s.color;
     c.globalAlpha = s.life / 0.35;
     s.particles.forEach(p => {
       c.beginPath();
-      c.arc(mToP(p.x), mToP(p.y), 2.5, 0, Math.PI * 2);
+      c.arc(mToP(p.x, cEl), mToP(p.y, cEl), 2.5, 0, Math.PI * 2);
       c.fill();
     });
     c.globalAlpha = 1.0;
   });
 }
 
-function renderGoldenChains(c) {
+function renderGoldenChains(c, cEl) {
   robots.forEach(a => {
     if (a.state === 'climbing' && a.isBuddy && a.buddyOf) {
       const climber = robots.find(r => r.id === a.buddyOf);
       if (climber) {
-        const px1 = mToP(climber.x);
-        const py1 = mToP(climber.y);
-        const px2 = mToP(a.x);
-        const py2 = mToP(a.y);
+        const px1 = mToP(climber.x, cEl);
+        const py1 = mToP(climber.y, cEl);
+        const px2 = mToP(a.x, cEl);
+        const py2 = mToP(a.y, cEl);
 
         c.strokeStyle = '#ffd700';
         c.lineWidth = 4;
@@ -1515,7 +1547,7 @@ function renderRobots(c, cEl) {
   robots.forEach(r => {
     const px = mToP(r.x, cEl);
     const py = mToP(r.y, cEl);
-    const size = mToP(ROBOT_SIZE_M, cEl);
+    const size = sizeToP(ROBOT_SIZE_M, cEl);
     const half = size / 2;
 
     c.save();
@@ -1652,24 +1684,98 @@ function gameLoop(timestamp) {
 
 function updateHUD() {
   if (!playerRobot) return;
-  document.getElementById('gsRedScore').textContent = SCORE.redSup;
-  document.getElementById('gsBlueScore').textContent = SCORE.blueSup;
+  
+  // Calculate real-time regional scores with climbing multipliers and buddy points
+  const zones = {
+    redR1: getRobotZoneKey(robots.find(r => r.id === 'redR1')),
+    redR2: getRobotZoneKey(robots.find(r => r.id === 'redR2')),
+    redR3: getRobotZoneKey(robots.find(r => r.id === 'redR3')),
+    blueR1: getRobotZoneKey(robots.find(r => r.id === 'blueR1')),
+    blueR2: getRobotZoneKey(robots.find(r => r.id === 'blueR2')),
+    blueR3: getRobotZoneKey(robots.find(r => r.id === 'blueR3'))
+  };
+  
+  const redMult = 1.0 + CLIMB_VALUES[zones.redR1] + CLIMB_VALUES[zones.redR2] + CLIMB_VALUES[zones.redR3];
+  const blueMult = 1.0 + CLIMB_VALUES[zones.blueR1] + CLIMB_VALUES[zones.blueR2] + CLIMB_VALUES[zones.blueR3];
+  const redBuddies = robots.filter(r => r.alliance === 'red' && r.state === 'climbing' && r.isBuddy).length;
+  const blueBuddies = robots.filter(r => r.alliance === 'blue' && r.state === 'climbing' && r.isBuddy).length;
+  
+  const redRegional = Math.ceil(SCORE.redSup * redMult) + redBuddies * 25;
+  const blueRegional = Math.ceil(SCORE.blueSup * blueMult) + blueBuddies * 25;
+  
+  document.getElementById('gsRedScore').textContent = redRegional;
+  document.getElementById('gsBlueScore').textContent = blueRegional;
   document.getElementById('gsExtScore').textContent = SCORE.extinguisher;
   
-  if (CONFIG.gameMode === 2 && player2Robot) {
-    document.getElementById('hudInventory').textContent = `P1: ${playerRobot.inventory.length}/${playerRobot.specs.capacity} | P2: ${player2Robot.inventory.length}/${player2Robot.specs.capacity}`;
-    
-    let p1Status = playerRobot.state === 'moving' ? '🏃' : playerRobot.state === 'picking' ? 'Intake' : playerRobot.state === 'shooting' ? '🎯' : playerRobot.state === 'climbing' ? '🧗' : 'Quieto';
-    let p2Status = player2Robot.state === 'moving' ? '🏃' : player2Robot.state === 'picking' ? 'Intake' : player2Robot.state === 'shooting' ? '🎯' : player2Robot.state === 'climbing' ? '🧗' : 'Quieto';
-    document.getElementById('hudStatus').textContent = `P1: ${p1Status} | P2: ${p2Status}`;
+  document.getElementById('gsRedSup').textContent = SCORE.redSup;
+  document.getElementById('gsBlueSup').textContent = SCORE.blueSup;
+  document.getElementById('gsRedHPQueue').textContent = hpRedQueue.length;
+  document.getElementById('gsBlueHPQueue').textContent = hpBlueQueue.length;
+  
+  const getDiffLabel = (val) => {
+    if (val === 0.0) return 'Nula (0.0)';
+    if (val <= 0.6) return 'Básica (' + val.toFixed(2) + ')';
+    if (val <= 0.8) return 'Media (' + val.toFixed(2) + ')';
+    return 'Fuerte (' + val.toFixed(2) + ')';
+  };
+  
+  if (CONFIG.alliance === 'red') {
+    document.getElementById('gsRedBotDiff').textContent = getDiffLabel(CONFIG.allyMultiplier);
+    document.getElementById('gsBlueBotDiff').textContent = getDiffLabel(CONFIG.rivalMultiplier);
   } else {
-    document.getElementById('hudInventory').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
-    let status = 'Quieto';
-    if (playerRobot.state === 'moving') status = '🏃 Moviéndose';
-    else if (playerRobot.state === 'picking') status = '⬇ Recogiendo';
-    else if (playerRobot.state === 'shooting') status = '🎯 Disparando';
-    else if (playerRobot.state === 'climbing') status = '🧗 Escalando';
-    document.getElementById('hudStatus').textContent = status;
+    document.getElementById('gsRedBotDiff').textContent = getDiffLabel(CONFIG.rivalMultiplier);
+    document.getElementById('gsBlueBotDiff').textContent = getDiffLabel(CONFIG.allyMultiplier);
+  }
+  
+  const redR1 = robots.find(r => r.id === 'redR1');
+  const blueR1 = robots.find(r => r.id === 'blueR1');
+  const p1Header = document.getElementById('p1Header');
+  const p2Header = document.getElementById('p2Header');
+  
+  const getStatusText = (state) => {
+    if (state === 'moving') return '🏃 Moviéndose';
+    if (state === 'picking') return '⬇ Recogiendo';
+    if (state === 'shooting') return '🎯 Disparando';
+    if (state === 'climbing') return '🧗 Escalando';
+    return 'Quieto';
+  };
+
+  if (CONFIG.alliance === 'red') {
+    // Left: Player 1 (Red)
+    if (p1Header) p1Header.textContent = '👤 JUGADOR 1 (WASD)';
+    document.getElementById('hudRedInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
+    document.getElementById('hudRedStatus').textContent = getStatusText(playerRobot.state);
+
+    // Right: Player 2 or Rival Bot (Blue)
+    if (CONFIG.gameMode === 2 && player2Robot) {
+      if (p2Header) p2Header.textContent = '👥 JUGADOR 2 (ARROWS)';
+      document.getElementById('hudBlueInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
+      document.getElementById('hudBlueStatus').textContent = getStatusText(player2Robot.state);
+    } else {
+      if (p2Header) p2Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+      if (blueR1) {
+        document.getElementById('hudBlueInv').textContent = `${blueR1.inventory.length} / ${blueR1.specs.capacity}`;
+        document.getElementById('hudBlueStatus').textContent = getStatusText(blueR1.state);
+      }
+    }
+  } else {
+    // Right: Player 1 (Blue)
+    if (p2Header) p2Header.textContent = '👤 JUGADOR 1 (WASD)';
+    document.getElementById('hudBlueInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
+    document.getElementById('hudBlueStatus').textContent = getStatusText(playerRobot.state);
+
+    // Left: Player 2 or Rival Bot (Red)
+    if (CONFIG.gameMode === 2 && player2Robot) {
+      if (p1Header) p1Header.textContent = '👥 JUGADOR 2 (ARROWS)';
+      document.getElementById('hudRedInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
+      document.getElementById('hudRedStatus').textContent = getStatusText(player2Robot.state);
+    } else {
+      if (p1Header) p1Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+      if (redR1) {
+        document.getElementById('hudRedInv').textContent = `${redR1.inventory.length} / ${redR1.specs.capacity}`;
+        document.getElementById('hudRedStatus').textContent = getStatusText(redR1.state);
+      }
+    }
   }
 
   const fieldCount = balls.filter(b => b.state === 'field').length;
@@ -1722,20 +1828,10 @@ function startMatch() {
   visualSplashes = [];
   matchTime = MATCH_DURATION;
 
-  // Toggle HUD keyboard display
-  const controlsEl = document.querySelector('.hud-controls');
-  if (CONFIG.gameMode === 2) {
-    controlsEl.innerHTML = `
-      <span>P1: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>P</kbd>, <kbd>SPACE</kbd>, <kbd>O</kbd></span>
-      <span style="margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.15); padding-left: 10px;">P2: <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>, <kbd>K</kbd>, <kbd>L</kbd>, <kbd>I</kbd></span>
-    `;
-  } else {
-    controlsEl.innerHTML = `
-      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover
-      <kbd>P</kbd> Recoger
-      <kbd>SPACE</kbd> Lanzar
-      <kbd>O</kbd> Escalar
-    `;
+  // Toggle HUD keyboard display for Player 2
+  const p2ControlsKbd = document.getElementById('p2ControlsKbd');
+  if (p2ControlsKbd) {
+    p2ControlsKbd.style.display = CONFIG.gameMode === 2 ? 'block' : 'none';
   }
 
   showPhase('game');

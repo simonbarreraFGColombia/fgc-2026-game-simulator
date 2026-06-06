@@ -208,55 +208,118 @@
          PHASE 2: IN-GAME
          ═══════════════════════════════════════════════════════════ -->
     <div id="gameScreen" class="sim-phase" style="display:none;">
+      <div class="game-container">
+        
+        <!-- Left Sidebar: RED Alliance -->
+        <aside class="game-sidebar red">
+          <div class="sidebar-header red">
+            <span class="alliance-dot">🔴</span>
+            <h2>RED ALLIANCE</h2>
+          </div>
+          
+          <div class="sidebar-main-score red">
+            <div class="sidebar-score-val" id="gsRedScore">0</div>
+            <div class="sidebar-score-lbl">PUNTOS REGIONALES</div>
+          </div>
+          
+          <div class="sidebar-stats-list">
+            <div class="sidebar-stat-item">
+              <span>Supresión Red</span>
+              <strong id="gsRedSup">0</strong>
+            </div>
+            <div class="sidebar-stat-item">
+              <span>Cola Human Player</span>
+              <strong id="gsRedHPQueue">0</strong>
+            </div>
+            <div class="sidebar-stat-item">
+              <span>Dificultad Bots</span>
+              <strong id="gsRedBotDiff">Media</strong>
+            </div>
+          </div>
+          
+          <div class="sidebar-divider"></div>
+          
+          <div class="player-hud-card">
+            <h3 id="p1Header">👤 JUGADOR 1 (WASD)</h3>
+            <div class="hud-field">
+              <span class="hud-lbl">Inventario</span>
+              <span class="hud-val" id="hudRedInv">0 / 12</span>
+            </div>
+            <div class="hud-field">
+              <span class="hud-lbl">Estado</span>
+              <span class="hud-val" id="hudRedStatus">Quieto</span>
+            </div>
+            <div class="controls-kbd">
+              <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover<br>
+              <kbd>P</kbd> Recoger &nbsp; <kbd>SPACE</kbd> Lanzar &nbsp; <kbd>O</kbd> Escalar
+            </div>
+          </div>
+        </aside>
 
-      <!-- Scoreboard Bar -->
-      <div class="game-scoreboard">
-        <div class="gs-alliance red">
-          <span class="gs-label">● RED</span>
-          <span class="gs-score" id="gsRedScore">0</span>
-        </div>
-        <div class="gs-center">
-          <div class="gs-timer" id="gsTimer">2:30</div>
-          <div class="gs-ext">🧯 <span id="gsExtScore">0</span></div>
-        </div>
-        <div class="gs-alliance blue">
-          <span class="gs-score" id="gsBlueScore">0</span>
-          <span class="gs-label">BLUE ●</span>
-        </div>
-      </div>
+        <!-- Center Arena -->
+        <main class="game-center">
+          <div class="center-top-bar">
+            <div class="center-ext-score">🧯 Extinguidor: <strong id="gsExtScore">0</strong></div>
+            <div class="center-timer" id="gsTimer">2:30</div>
+            <div class="center-field-balls">🔥 En Campo: <strong id="hudFieldBalls">500</strong></div>
+          </div>
+          
+          <div class="game-canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Countdown Overlay -->
+            <div class="countdown-overlay" id="countdownOverlay" style="display:none;">
+              <div class="countdown-number" id="countdownNumber">3</div>
+            </div>
+          </div>
+        </main>
 
-      <!-- Game Canvas -->
-      <div class="game-canvas-wrapper">
-        <canvas id="gameCanvas"></canvas>
-
-        <!-- Countdown Overlay -->
-        <div class="countdown-overlay" id="countdownOverlay" style="display:none;">
-          <div class="countdown-number" id="countdownNumber">3</div>
-        </div>
-      </div>
-
-      <!-- HUD Bar -->
-      <div class="game-hud">
-        <div class="hud-item">
-          <span class="hud-icon">🎒</span>
-          <span class="hud-label">Inventario</span>
-          <span class="hud-value" id="hudInventory">0 / 12</span>
-        </div>
-        <div class="hud-item">
-          <span class="hud-icon">📡</span>
-          <span class="hud-label">Estado</span>
-          <span class="hud-value" id="hudStatus">Esperando...</span>
-        </div>
-        <div class="hud-item">
-          <span class="hud-icon">🔥</span>
-          <span class="hud-label">En Campo</span>
-          <span class="hud-value" id="hudFieldBalls">500</span>
-        </div>
-        <div class="hud-controls">
-          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover
-          <kbd>P</kbd> Recoger
-          <kbd>SPACE</kbd> Lanzar
-        </div>
+        <!-- Right Sidebar: BLUE Alliance -->
+        <aside class="game-sidebar blue">
+          <div class="sidebar-header blue">
+            <h2>BLUE ALLIANCE</h2>
+            <span class="alliance-dot">🔵</span>
+          </div>
+          
+          <div class="sidebar-main-score blue">
+            <div class="sidebar-score-val" id="gsBlueScore">0</div>
+            <div class="sidebar-score-lbl">PUNTOS REGIONALES</div>
+          </div>
+          
+          <div class="sidebar-stats-list">
+            <div class="sidebar-stat-item">
+              <span>Supresión Blue</span>
+              <strong id="gsBlueSup">0</strong>
+            </div>
+            <div class="sidebar-stat-item">
+              <span>Cola Human Player</span>
+              <strong id="gsBlueHPQueue">0</strong>
+            </div>
+            <div class="sidebar-stat-item">
+              <span>Dificultad Bots</span>
+              <strong id="gsBlueBotDiff">Media</strong>
+            </div>
+          </div>
+          
+          <div class="sidebar-divider"></div>
+          
+          <div class="player-hud-card">
+            <h3 id="p2Header">👥 JUGADOR 2 (ARROWS)</h3>
+            <div class="hud-field">
+              <span class="hud-lbl">Inventario</span>
+              <span class="hud-val" id="hudBlueInv">0 / 12</span>
+            </div>
+            <div class="hud-field">
+              <span class="hud-lbl">Estado</span>
+              <span class="hud-val" id="hudBlueStatus">Quieto</span>
+            </div>
+            <div class="controls-kbd" id="p2ControlsKbd">
+              <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Mover<br>
+              <kbd>K</kbd> Recoger &nbsp; <kbd>L</kbd> Lanzar &nbsp; <kbd>I</kbd> Escalar
+            </div>
+          </div>
+        </aside>
+        
       </div>
     </div>
 
