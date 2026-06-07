@@ -836,8 +836,36 @@ body:has(.sim-app) {
 }
 
 .speed-toggle-btn.active-2x {
-  background: rgba(232, 48, 72, 0.1);
-  border-color: rgba(232, 48, 72, 0.4);
+  background: rgba(255, 140, 40, 0.1);
+  border-color: rgba(255, 140, 40, 0.4);
+  color: #ff8c28;
+  box-shadow: 0 0 8px rgba(255, 140, 40, 0.2);
+}
+
+.speed-toggle-btn.active-4x {
+  background: rgba(232, 48, 72, 0.15);
+  border-color: rgba(232, 48, 72, 0.5);
+  color: #ff334b;
+  box-shadow: 0 0 8px rgba(232, 48, 72, 0.35);
+}
+
+.end-match-toggle-btn {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(232, 48, 72, 0.2);
+  background: rgba(232, 48, 72, 0.05);
   color: #ff5e6f;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.end-match-toggle-btn:hover {
+  background: rgba(232, 48, 72, 0.15);
+  border-color: rgba(232, 48, 72, 0.4);
   box-shadow: 0 0 8px rgba(232, 48, 72, 0.2);
 }

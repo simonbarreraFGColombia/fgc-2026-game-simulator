@@ -1891,6 +1891,7 @@ function startMatch() {
   if (btnSpeedToggle) {
     btnSpeedToggle.textContent = '⚡ 1x';
     btnSpeedToggle.classList.remove('active-2x');
+    btnSpeedToggle.classList.remove('active-4x');
   }
 
   // Toggle HUD keyboard display for Player 2
@@ -2229,18 +2230,35 @@ function initSetupUI() {
     renderSetupPreview();
   });
 
-  // Speed toggle button
+  // Speed toggle button (1x -> 2x -> 4x -> 1x)
   const btnSpeedToggle = document.getElementById('btnSpeedToggle');
   if (btnSpeedToggle) {
     btnSpeedToggle.addEventListener('click', () => {
       if (timeSpeed === 1) {
         timeSpeed = 2;
         btnSpeedToggle.textContent = '⚡ 2x';
+        btnSpeedToggle.classList.remove('active-4x');
         btnSpeedToggle.classList.add('active-2x');
+      } else if (timeSpeed === 2) {
+        timeSpeed = 4;
+        btnSpeedToggle.textContent = '⚡ 4x';
+        btnSpeedToggle.classList.remove('active-2x');
+        btnSpeedToggle.classList.add('active-4x');
       } else {
         timeSpeed = 1;
         btnSpeedToggle.textContent = '⚡ 1x';
         btnSpeedToggle.classList.remove('active-2x');
+        btnSpeedToggle.classList.remove('active-4x');
+      }
+    });
+  }
+
+  // End match button (immediate skip to results)
+  const btnEndMatch = document.getElementById('btnEndMatch');
+  if (btnEndMatch) {
+    btnEndMatch.addEventListener('click', () => {
+      if (gamePhase === 'playing' || gamePhase === 'countdown') {
+        endMatch();
       }
     });
   }
