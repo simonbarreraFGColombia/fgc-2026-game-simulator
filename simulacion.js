@@ -616,7 +616,7 @@ function updatePlayerRobot(r, dt) {
 
   // Intake / Pickup Action
   r.pickupCooldown = Math.max(0, r.pickupCooldown - dt);
-  const pickupKey = r.isPlayer2 ? 'k' : 'p';
+  const pickupKey = r.isPlayer2 ? 'o' : 'e';
   if (KEYS[pickupKey] && r.inventory.length < r.specs.capacity && r.pickupCooldown <= 0) {
     const nearby = getNearbyBalls(r.x, r.y, PICKUP_RANGE_M);
     if (nearby.length > 0) {
@@ -632,9 +632,9 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Shoot Action (Space / L)
+  // Shoot Action (Space / Ñ)
   r.shootCooldown = Math.max(0, r.shootCooldown - dt);
-  const shootKey = r.isPlayer2 ? 'l' : ' ';
+  const shootKey = r.isPlayer2 ? 'ñ' : ' ';
   if (KEYS[shootKey] && r.inventory.length > 0 && r.shootCooldown <= 0) {
     if (r.isInShootZone()) {
       const ballIdx = r.inventory.shift();
