@@ -616,7 +616,7 @@ function updatePlayerRobot(r, dt) {
 
   // Intake / Pickup Action
   r.pickupCooldown = Math.max(0, r.pickupCooldown - dt);
-  const pickupKey = r.isPlayer2 ? 'o' : 'e';
+  const pickupKey = r.isPlayer2 ? 'o' : 'b';
   if (KEYS[pickupKey] && r.inventory.length < r.specs.capacity && r.pickupCooldown <= 0) {
     const nearby = getNearbyBalls(r.x, r.y, PICKUP_RANGE_M);
     if (nearby.length > 0) {
