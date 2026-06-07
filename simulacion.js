@@ -247,6 +247,7 @@ const CONFIG = {
     climbSpeed: 0.5,
   },
   gameMode: 1, // 1 = Solo, 2 = 2 Players Coop
+  coopRelation: 'teammates', // 'teammates' | 'rivals'
   allyMultiplier: 0.8,
   rivalMultiplier: 0.8,
   hpAccuracy: 70,
@@ -493,7 +494,7 @@ function initRobots() {
   // Create player alliance robots
   for (let i = 0; i < 3; i++) {
     const isP1 = (i === CONFIG.teamNumber - 1);
-    const isP2 = (i === (CONFIG.teamNumber % 3) && CONFIG.gameMode === 2);
+    const isP2 = (i === (CONFIG.teamNumber % 3) && CONFIG.gameMode === 2 && CONFIG.coopRelation === 'teammates');
     const isP = isP1 || isP2;
     
     const r = new Robot(
@@ -531,25 +532,33 @@ function initRobots() {
 
   // Create enemy alliance robots
   for (let i = 0; i < 3; i++) {
+    const isP2 = (i === 0 && CONFIG.gameMode === 2 && CONFIG.coopRelation === 'rivals');
     const r = new Robot(
       `${ea}R${i + 1}`,
       ea,
       i + 1,
-      false
+      isP2
     );
+    r.isPlayer2 = isP2;
     r.x = eStartX;
     r.y = teamPositions[i].y;
     r.angle = ea === 'red' ? 0 : Math.PI;
     r.prevX = r.x;
     r.prevY = r.y;
-    r.specs = {
-      moveSpeed: CONFIG.specs.moveSpeed * CONFIG.rivalMultiplier,
-      pickupSpeed: CONFIG.specs.pickupSpeed * CONFIG.rivalMultiplier,
-      shotSpeed: CONFIG.specs.shotSpeed * CONFIG.rivalMultiplier,
-      capacity: Math.max(3, Math.round(CONFIG.specs.capacity * CONFIG.rivalMultiplier)),
-      accuracy: Math.round(CONFIG.specs.accuracy * CONFIG.rivalMultiplier),
-      climbSpeed: CONFIG.specs.climbSpeed * CONFIG.rivalMultiplier
-    };
+
+    if (isP2) {
+      r.specs = { ...CONFIG.specs };
+      player2Robot = r;
+    } else {
+      r.specs = {
+        moveSpeed: CONFIG.specs.moveSpeed * CONFIG.rivalMultiplier,
+        pickupSpeed: CONFIG.specs.pickupSpeed * CONFIG.rivalMultiplier,
+        shotSpeed: CONFIG.specs.shotSpeed * CONFIG.rivalMultiplier,
+        capacity: Math.max(3, Math.round(CONFIG.specs.capacity * CONFIG.rivalMultiplier)),
+        accuracy: Math.round(CONFIG.specs.accuracy * CONFIG.rivalMultiplier),
+        climbSpeed: CONFIG.specs.climbSpeed * CONFIG.rivalMultiplier
+      };
+    }
     robots.push(r);
   }
 }
@@ -1798,17 +1807,26 @@ function updateHUD() {
 
   if (CONFIG.alliance === 'red') {
     // Left: Player 1 (Red)
-    if (p1Header) p1Header.textContent = '👤 JUGADOR 1 (WASD)';
+    if (p1Header) {
+      p1Header.textContent = '👤 JUGADOR 1 (WASD)';
+      p1Header.style.color = 'var(--red-light)';
+    }
     document.getElementById('hudRedInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
     document.getElementById('hudRedStatus').textContent = getStatusText(playerRobot.state);
 
     // Right: Player 2 or Rival Bot (Blue)
     if (CONFIG.gameMode === 2 && player2Robot) {
-      if (p2Header) p2Header.textContent = '👥 JUGADOR 2 (ARROWS)';
+      if (p2Header) {
+        p2Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - FLECHAS)' : '👥 JUGADOR 2 (COMPAÑERO - FLECHAS)';
+        p2Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--blue-light)' : 'var(--red-light)';
+      }
       document.getElementById('hudBlueInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
       document.getElementById('hudBlueStatus').textContent = getStatusText(player2Robot.state);
     } else {
-      if (p2Header) p2Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+      if (p2Header) {
+        p2Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+        p2Header.style.color = 'var(--blue-light)';
+      }
       if (blueR1) {
         document.getElementById('hudBlueInv').textContent = `${blueR1.inventory.length} / ${blueR1.specs.capacity}`;
         document.getElementById('hudBlueStatus').textContent = getStatusText(blueR1.state);
@@ -1816,17 +1834,26 @@ function updateHUD() {
     }
   } else {
     // Right: Player 1 (Blue)
-    if (p2Header) p2Header.textContent = '👤 JUGADOR 1 (WASD)';
+    if (p2Header) {
+      p2Header.textContent = '👤 JUGADOR 1 (WASD)';
+      p2Header.style.color = 'var(--blue-light)';
+    }
     document.getElementById('hudBlueInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
     document.getElementById('hudBlueStatus').textContent = getStatusText(playerRobot.state);
 
     // Left: Player 2 or Rival Bot (Red)
     if (CONFIG.gameMode === 2 && player2Robot) {
-      if (p1Header) p1Header.textContent = '👥 JUGADOR 2 (ARROWS)';
+      if (p1Header) {
+        p1Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - FLECHAS)' : '👥 JUGADOR 2 (COMPAÑERO - FLECHAS)';
+        p1Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--red-light)' : 'var(--blue-light)';
+      }
       document.getElementById('hudRedInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
       document.getElementById('hudRedStatus').textContent = getStatusText(player2Robot.state);
     } else {
-      if (p1Header) p1Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+      if (p1Header) {
+        p1Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
+        p1Header.style.color = 'var(--red-light)';
+      }
       if (redR1) {
         document.getElementById('hudRedInv').textContent = `${redR1.inventory.length} / ${redR1.specs.capacity}`;
         document.getElementById('hudRedStatus').textContent = getStatusText(redR1.state);
@@ -2068,11 +2095,18 @@ function updateResultsStatsUI() {
     const p2Shots = PLAYER2_STATS.hits + PLAYER2_STATS.misses;
     const p2Acc = p2Shots > 0 ? `${Math.round(PLAYER2_STATS.hits / p2Shots * 100)}%` : '—';
 
+    const p1Color = CONFIG.alliance === 'red' ? 'var(--red-light)' : 'var(--blue-light)';
+    const p2Color = CONFIG.coopRelation === 'rivals' 
+      ? (CONFIG.alliance === 'red' ? 'var(--blue-light)' : 'var(--red-light)')
+      : (CONFIG.alliance === 'red' ? 'var(--red-light)' : 'var(--blue-light)');
+      
+    const p2Label = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - FLECHAS)' : '👥 JUGADOR 2 (COMPAÑERO - FLECHAS)';
+
     card.innerHTML = `
       <h3>📊 ESTADÍSTICAS DE JUGADORES</h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
-          <h4 style="font-size: 0.72rem; color: var(--col-yellow); margin-bottom: 6px; letter-spacing: 0.5px;">👤 JUGADOR 1 (WASD)</h4>
+          <h4 style="font-size: 0.72rem; color: ${p1Color}; margin-bottom: 6px; letter-spacing: 0.5px;">👤 JUGADOR 1 (WASD)</h4>
           <div class="ps-grid" style="grid-template-columns: 1fr; gap: 5px;">
             <div class="ps-item"><span>Pelotas Recogidas</span><strong>${PLAYER_STATS.pickedUp}</strong></div>
             <div class="ps-item"><span>Pelotas Disparadas</span><strong>${PLAYER_STATS.shot}</strong></div>
@@ -2081,7 +2115,7 @@ function updateResultsStatsUI() {
           </div>
         </div>
         <div>
-          <h4 style="font-size: 0.72rem; color: var(--blue-light); margin-bottom: 6px; letter-spacing: 0.5px;">👥 JUGADOR 2 (ARROWS)</h4>
+          <h4 style="font-size: 0.72rem; color: ${p2Color}; margin-bottom: 6px; letter-spacing: 0.5px;">${p2Label}</h4>
           <div class="ps-grid" style="grid-template-columns: 1fr; gap: 5px;">
             <div class="ps-item"><span>Pelotas Recogidas</span><strong>${PLAYER2_STATS.pickedUp}</strong></div>
             <div class="ps-item"><span>Pelotas Disparadas</span><strong>${PLAYER2_STATS.shot}</strong></div>
@@ -2141,6 +2175,13 @@ function initSetupUI() {
           initRobots();
         } else if (groupId === 'gameModeToggle') {
           CONFIG.gameMode = parseInt(val);
+          const coopRow = document.getElementById('coopModeRow');
+          if (coopRow) {
+            coopRow.style.display = CONFIG.gameMode === 2 ? 'flex' : 'none';
+          }
+          initRobots();
+        } else if (groupId === 'coopRelationToggle') {
+          CONFIG.coopRelation = val;
           initRobots();
         } else if (groupId === 'allyDifficulty') {
           const v = parseFloat(val);
