@@ -122,6 +122,29 @@ function playSound(type) {
       gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
       osc.start(now);
       osc.stop(now + 0.15);
+    } else if (type === 'trumpet') {
+      // Retro synth trumpet warning fanfare
+      const notes = [587.33, 587.33, 783.99]; // D5, D5, G5
+      const startTimes = [now, now + 0.12, now + 0.24];
+      const durations = [0.1, 0.1, 0.35];
+      
+      notes.forEach((freq, idx) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(freq, startTimes[idx]);
+        o.frequency.exponentialRampToValueAtTime(freq * 1.02, startTimes[idx] + durations[idx]);
+        
+        g.gain.setValueAtTime(0.0, startTimes[idx]);
+        g.gain.linearRampToValueAtTime(0.06, startTimes[idx] + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, startTimes[idx] + durations[idx]);
+        
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(startTimes[idx]);
+        o.stop(startTimes[idx] + durations[idx]);
+      });
+      return;
     } else if (type === 'go') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, now);
@@ -208,6 +231,8 @@ let gamePhase = 'setup'; // 'setup' | 'countdown' | 'playing' | 'ended'
 let matchTime = MATCH_DURATION;
 let matchInterval = null;
 let lastClimbSoundTime = 0;
+let timeSpeed = 1;
+let trumpetPlayed = false;
 
 // Configuration (from setup UI)
 const CONFIG = {
@@ -1664,11 +1689,30 @@ let lastFrameTime = 0;
 let animationId = null;
 
 function gameLoop(timestamp) {
-  const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.05); // cap frame step
+  const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.05) * timeSpeed;
   lastFrameTime = timestamp;
 
   if (gamePhase === 'playing') {
     rebuildSpatialGrid();
+    
+    // Decrement matchTime
+    const prevTime = Math.ceil(matchTime);
+    matchTime = Math.max(0, matchTime - dt);
+    
+    if (Math.ceil(matchTime) !== prevTime) {
+      updateTimerDisplay();
+    }
+    
+    // Trumpet sound trigger at 30s
+    if (matchTime <= 30 && !trumpetPlayed) {
+      playSound('trumpet');
+      trumpetPlayed = true;
+    }
+
+    if (matchTime <= 0) {
+      endMatch();
+      return;
+    }
     
     robots.forEach(r => {
       if (r.state === 'climbing') {
@@ -1795,15 +1839,16 @@ function updateHUD() {
 }
 
 function updateTimerDisplay() {
-  const m = Math.floor(matchTime / 60);
-  const s = matchTime % 60;
+  const displayTime = Math.ceil(matchTime);
+  const m = Math.floor(displayTime / 60);
+  const s = displayTime % 60;
   const display = `${m}:${s.toString().padStart(2, '0')}`;
   const timerEl = document.getElementById('gsTimer');
   timerEl.textContent = display;
 
   timerEl.className = 'gs-timer';
-  if (matchTime <= 10) timerEl.classList.add('critical');
-  else if (matchTime <= 30) timerEl.classList.add('warning');
+  if (displayTime <= 10) timerEl.classList.add('critical');
+  else if (displayTime <= 30) timerEl.classList.add('warning');
 }
 
 // ── 13. GAME FLOW ────────────────────────────────────────────────
@@ -1839,6 +1884,14 @@ function startMatch() {
   activeThrows = [];
   visualSplashes = [];
   matchTime = MATCH_DURATION;
+  timeSpeed = 1;
+  trumpetPlayed = false;
+
+  const btnSpeedToggle = document.getElementById('btnSpeedToggle');
+  if (btnSpeedToggle) {
+    btnSpeedToggle.textContent = '⚡ 1x';
+    btnSpeedToggle.classList.remove('active-2x');
+  }
 
   // Toggle HUD keyboard display for Player 2
   const p2ControlsKbd = document.getElementById('p2ControlsKbd');
@@ -1869,7 +1922,7 @@ function startMatch() {
     } else if (count === 0) {
       numEl.textContent = '¡GO!';
       numEl.style.color = '#2dd264';
-      playSound('go');
+      playSound('trumpet');
     } else {
       clearInterval(countInterval);
       overlay.style.display = 'none';
@@ -1885,13 +1938,8 @@ function startMatch() {
 }
 
 function startMatchTimer() {
-  matchInterval = setInterval(() => {
-    matchTime--;
-    updateTimerDisplay();
-    if (matchTime <= 0) {
-      endMatch();
-    }
-  }, 1000);
+  // Timer is updated dynamically in gameLoop to support speed scaling
+  matchInterval = null;
 }
 
 function getRobotZoneKey(r) {
@@ -2180,6 +2228,22 @@ function initSetupUI() {
     resizeSetupCanvas();
     renderSetupPreview();
   });
+
+  // Speed toggle button
+  const btnSpeedToggle = document.getElementById('btnSpeedToggle');
+  if (btnSpeedToggle) {
+    btnSpeedToggle.addEventListener('click', () => {
+      if (timeSpeed === 1) {
+        timeSpeed = 2;
+        btnSpeedToggle.textContent = '⚡ 2x';
+        btnSpeedToggle.classList.add('active-2x');
+      } else {
+        timeSpeed = 1;
+        btnSpeedToggle.textContent = '⚡ 1x';
+        btnSpeedToggle.classList.remove('active-2x');
+      }
+    });
+  }
 
   // Go to calculator button
   document.getElementById('goCalcBtn').addEventListener('click', () => {

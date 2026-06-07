@@ -812,3 +812,32 @@ body:has(.sim-app) {
   grid-template-columns: 240px 1fr 240px;
   gap: 12px;
 }
+
+/* ── Speed Toggle Button Styles ──────────────────────────────── */
+.speed-toggle-btn {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  background: rgba(255, 215, 0, 0.05);
+  color: var(--col-yellow);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.speed-toggle-btn:hover {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+}
+
+.speed-toggle-btn.active-2x {
+  background: rgba(232, 48, 72, 0.1);
+  border-color: rgba(232, 48, 72, 0.4);
+  color: #ff5e6f;
+  box-shadow: 0 0 8px rgba(232, 48, 72, 0.2);
+}
