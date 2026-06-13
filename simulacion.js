@@ -28,6 +28,8 @@ const ZONES = {
   fireShieldBlue: { x: 6.4,   y: 6.4, w: 0.6, h: 0.6 },
   shootRedZone:   { x: 0.0,   y: 0.2, w: 1.8, h: 2.0 },
   shootBlueZone:  { x: 5.2,   y: 0.2, w: 1.8, h: 2.0 },
+  shootRedExtension: { x: 1.8, y: 0.7, w: 0.6, h: 0.6 },
+  shootBlueExtension: { x: 4.6, y: 0.7, w: 0.6, h: 0.6 },
   fsRedZone:      { x: 0.0,   y: 5.8, w: 0.9, h: 1.2 },
   fsBlueZone:     { x: 6.1,   y: 5.8, w: 0.9, h: 1.2 },
 };
@@ -462,7 +464,10 @@ class Robot {
 
   isInShootZone() {
     const z = this.alliance === 'red' ? ZONES.shootRedZone : ZONES.shootBlueZone;
-    return this.x >= z.x && this.x <= z.x + z.w && this.y >= z.y && this.y <= z.y + z.h;
+    const ext = this.alliance === 'red' ? ZONES.shootRedExtension : ZONES.shootBlueExtension;
+    const inMain = this.x >= z.x && this.x <= z.x + z.w && this.y >= z.y && this.y <= z.y + z.h;
+    const inExt = this.x >= ext.x && this.x <= ext.x + ext.w && this.y >= ext.y && this.y <= ext.y + ext.h;
+    return inMain || inExt;
   }
 
   isInFireShieldZone() {
@@ -570,6 +575,31 @@ function inContactZone(robot) {
   return Math.sqrt(dx*dx + dy*dy) < 0.45;
 }
 
+function distanceToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return { dist: Math.hypot(px - ax, py - ay), t: 0 };
+  
+  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  
+  const projX = ax + t * dx;
+  const projY = ay + t * dy;
+  return { dist: Math.hypot(px - projX, py - projY), t: t };
+}
+
+function inZone1(robot) {
+  const brace = BRACES[robot.alliance];
+  const ax = brace.startX;
+  const ay = brace.startY;
+  const bx = brace.startX + (brace.endX - brace.startX) * 0.33;
+  const by = brace.startY + (brace.endY - brace.startY) * 0.33;
+  
+  const res = distanceToSegment(robot.x, robot.y, ax, ay, bx, by);
+  return res.dist < 0.45 ? res.t * 0.33 : null;
+}
+
 // ── 7. PLAYER INPUT ──────────────────────────────────────────────
 function updatePlayerRobot(r, dt) {
   if (!r || gamePhase !== 'playing') return;
@@ -671,12 +701,26 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Climb Action trigger (O / I or W / Arrow Up)
+  // Climb Action trigger (O / I or W / Arrow Up for Contact, V / P for Zone 1)
   const climbKey = r.isPlayer2 ? 'i' : 'o';
   const upKey = r.isPlayer2 ? 'arrowup' : 'w';
-  if ((KEYS[climbKey] || KEYS[upKey]) && inContactZone(r)) {
+  const zone1Key = r.isPlayer2 ? 'p' : 'v';
+  
+  const z1T = inZone1(r);
+  let shouldAttach = false;
+  let attachT = 0.05;
+
+  if (KEYS[zone1Key] && z1T !== null) {
+    shouldAttach = true;
+    attachT = Math.max(0.05, z1T);
+  } else if ((KEYS[climbKey] || KEYS[upKey]) && inContactZone(r)) {
+    shouldAttach = true;
+    attachT = 0.05;
+  }
+
+  if (shouldAttach) {
     r.state = 'climbing';
-    r.climbT = 0.05;
+    r.climbT = attachT;
     
     // Auto-attach buddy climber
     let closestAlly = null;
@@ -800,6 +844,7 @@ function updateBotAI(robot, dt) {
     // If not allowed to climb, and currently trying to climb, reset
     if (r.aiState === 'seek_climb') {
       r.aiState = 'seek_balls';
+      r.aiTarget = null;
     }
     if (r.state === 'climbing') {
       r.state = 'idle';
@@ -815,6 +860,7 @@ function updateBotAI(robot, dt) {
     case 'seek_balls': {
       if (r.inventory.length >= r.specs.capacity) {
         r.aiState = Math.random() < 0.7 ? 'seek_suppression' : 'seek_fireshield';
+        r.aiTarget = null;
         break;
       }
       const nearby = getNearbyBalls(r.x, r.y, PICKUP_RANGE_M);
@@ -825,22 +871,74 @@ function updateBotAI(robot, dt) {
         r.inventory.push(idx);
         r.pickupCooldown = 1.0 / r.specs.pickupSpeed;
         r.state = 'picking';
+        r.aiTarget = null;
         if (r.inventory.length >= r.specs.capacity) {
           r.aiState = Math.random() < 0.7 ? 'seek_suppression' : 'seek_fireshield';
         }
         break;
       }
-      let bestDist = Infinity;
+
       let bestX = FIELD_M / 2, bestY = FIELD_M / 2;
       const searchRange = 3.5;
-      const candidates = getNearbyBalls(r.x, r.y, searchRange);
-      if (candidates.length > 0) {
-        bestX = balls[candidates[0]].x;
-        bestY = balls[candidates[0]].y;
-      } else {
-        bestX = 1 + Math.random() * 5;
-        bestY = 1 + Math.random() * 5;
+      
+      // Target lock evaluation
+      let hasValidTarget = false;
+      if (r.aiTarget !== null) {
+        if (typeof r.aiTarget === 'number') {
+          const b = balls[r.aiTarget];
+          if (b && b.state === 'field') {
+            bestX = b.x;
+            bestY = b.y;
+            hasValidTarget = true;
+          }
+        } else if (typeof r.aiTarget === 'object' && r.aiTarget !== null) {
+          const dist = Math.hypot(r.aiTarget.x - r.x, r.aiTarget.y - r.y);
+          if (dist > 0.35) {
+            bestX = r.aiTarget.x;
+            bestY = r.aiTarget.y;
+            hasValidTarget = true;
+          }
+        }
       }
+
+      if (!hasValidTarget) {
+        r.aiTarget = null;
+        const candidates = getNearbyBalls(r.x, r.y, searchRange);
+        if (candidates.length > 0) {
+          // Avoid targeting the same ball as other allied bots
+          const otherAlliedBots = robots.filter(other => other.id !== r.id && other.alliance === r.alliance && !other.isPlayer);
+          const targetedBallIdxs = otherAlliedBots.map(other => other.aiTarget).filter(t => typeof t === 'number');
+          const availableCandidates = candidates.filter(idx => !targetedBallIdxs.includes(idx));
+          
+          let chosenIdx = -1;
+          if (availableCandidates.length > 0) {
+            let closestDist = Infinity;
+            availableCandidates.forEach(idx => {
+              const b = balls[idx];
+              const d = Math.hypot(b.x - r.x, b.y - r.y);
+              if (d < closestDist) {
+                closestDist = d;
+                chosenIdx = idx;
+              }
+            });
+          } else {
+            chosenIdx = candidates[Math.floor(Math.random() * candidates.length)];
+          }
+          
+          r.aiTarget = chosenIdx;
+          bestX = balls[chosenIdx].x;
+          bestY = balls[chosenIdx].y;
+        } else {
+          // Wander to random position
+          r.aiTarget = {
+            x: 1.0 + Math.random() * 5.0,
+            y: 1.0 + Math.random() * 5.0
+          };
+          bestX = r.aiTarget.x;
+          bestY = r.aiTarget.y;
+        }
+      }
+
       moveToward(r, bestX, bestY, dt);
       break;
     }
@@ -851,7 +949,8 @@ function updateBotAI(robot, dt) {
         r.aiState = 'shooting';
       } else {
         const driveX = r.alliance === 'red' ? 1.5 : 5.5;
-        moveToward(r, driveX, target.y + 0.5, dt);
+        const offset = (r.teamNum - 2) * 0.4;
+        moveToward(r, driveX, target.y + 0.5 + offset, dt);
       }
       break;
     }
@@ -861,7 +960,8 @@ function updateBotAI(robot, dt) {
       if (r.isInFireShieldZone() && r.inventory.length > 0) {
         r.aiState = 'depositing_fs';
       } else {
-        moveToward(r, target.x, target.y, dt);
+        const offset = (r.teamNum - 2) * 0.2;
+        moveToward(r, target.x + (r.alliance === 'red' ? offset : -offset), target.y, dt);
       }
       break;
     }
@@ -869,6 +969,7 @@ function updateBotAI(robot, dt) {
     case 'shooting': {
       if (r.inventory.length === 0) {
         r.aiState = 'seek_balls';
+        r.aiTarget = null;
         r.aiWait = 0.3 + Math.random() * 0.4;
         break;
       }
@@ -893,6 +994,7 @@ function updateBotAI(robot, dt) {
     case 'depositing_fs': {
       if (r.inventory.length === 0) {
         r.aiState = 'seek_balls';
+        r.aiTarget = null;
         r.aiWait = 0.3 + Math.random() * 0.4;
         break;
       }
@@ -911,6 +1013,7 @@ function updateBotAI(robot, dt) {
       const shouldClimb = (matchTime <= 30) || (fieldBallsCount === 0);
       if (!shouldClimb) {
         r.aiState = 'seek_balls';
+        r.aiTarget = null;
         r.state = 'idle';
         r.climbT = 0.0;
         break;
@@ -1234,6 +1337,8 @@ function drawFieldBase(c, cEl) {
   // Zonas de Disparo y Fire Shields
   drawZoneCtx(c, ZONES.shootRedZone, 'rgba(232,48,72,0.04)', 'rgba(232,48,72,0.08)', cEl);
   drawZoneCtx(c, ZONES.shootBlueZone, 'rgba(51,119,255,0.04)', 'rgba(51,119,255,0.08)', cEl);
+  drawZoneCtx(c, ZONES.shootRedExtension, 'rgba(255,215,0,0.04)', 'rgba(255,215,0,0.18)', cEl);
+  drawZoneCtx(c, ZONES.shootBlueExtension, 'rgba(255,215,0,0.04)', 'rgba(255,215,0,0.18)', cEl);
   drawZoneCtx(c, ZONES.fsRedZone, 'rgba(232,48,72,0.03)', 'rgba(232,48,72,0.06)', cEl);
   drawZoneCtx(c, ZONES.fsBlueZone, 'rgba(51,119,255,0.03)', 'rgba(51,119,255,0.06)', cEl);
 
