@@ -2211,7 +2211,7 @@ function updateResultsStatsUI() {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
           <h4 style="font-size: 0.72rem; color: ${p1Color}; margin-bottom: 6px; letter-spacing: 0.5px;">👤 JUGADOR 1 (WASD)</h4>
-          <div class="ps-grid" style="grid-template-columns: 1fr; gap: 5px;">
+          <div class="ps-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
             <div class="ps-item"><span>Pelotas Recogidas</span><strong>${PLAYER_STATS.pickedUp}</strong></div>
             <div class="ps-item"><span>Pelotas Disparadas</span><strong>${PLAYER_STATS.shot}</strong></div>
             <div class="ps-item"><span>Precisión Real</span><strong>${p1Acc}</strong></div>
@@ -2220,7 +2220,7 @@ function updateResultsStatsUI() {
         </div>
         <div>
           <h4 style="font-size: 0.72rem; color: ${p2Color}; margin-bottom: 6px; letter-spacing: 0.5px;">${p2Label}</h4>
-          <div class="ps-grid" style="grid-template-columns: 1fr; gap: 5px;">
+          <div class="ps-grid" style="grid-template-columns: 1fr 1fr; gap: 6px;">
             <div class="ps-item"><span>Pelotas Recogidas</span><strong>${PLAYER2_STATS.pickedUp}</strong></div>
             <div class="ps-item"><span>Pelotas Disparadas</span><strong>${PLAYER2_STATS.shot}</strong></div>
             <div class="ps-item"><span>Precisión Real</span><strong>${p2Acc}</strong></div>

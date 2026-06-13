@@ -573,9 +573,10 @@ body:has(.sim-app) {
   100% { transform: scale(1); opacity: 0.8; }
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   RESULTS SCREEN
-   ═══════════════════════════════════════════════════════════════ */
+#resultsScreen {
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
 
 .results-container {
   max-width: 800px;
