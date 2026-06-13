@@ -28,8 +28,8 @@ const ZONES = {
   fireShieldBlue: { x: 6.4,   y: 6.4, w: 0.6, h: 0.6 },
   shootRedZone:   { x: 0.0,   y: 0.2, w: 1.8, h: 2.0 },
   shootBlueZone:  { x: 5.2,   y: 0.2, w: 1.8, h: 2.0 },
-  shootRedExtension: { x: 1.8, y: 0.7, w: 0.6, h: 0.6 },
-  shootBlueExtension: { x: 4.6, y: 0.7, w: 0.6, h: 0.6 },
+  shootRedExtension: { x: 1.8, y: 0.7, w: 1.0, h: 0.9 },
+  shootBlueExtension: { x: 4.2, y: 0.7, w: 1.0, h: 0.9 },
   fsRedZone:      { x: 0.0,   y: 5.8, w: 0.9, h: 1.2 },
   fsBlueZone:     { x: 6.1,   y: 5.8, w: 0.9, h: 1.2 },
 };
