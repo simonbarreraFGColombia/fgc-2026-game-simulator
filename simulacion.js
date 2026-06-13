@@ -701,21 +701,20 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Climb Action trigger (O / I or W / Arrow Up for Contact, V / P for Zone 1)
-  const climbKey = r.isPlayer2 ? 'i' : 'o';
-  const upKey = r.isPlayer2 ? 'arrowup' : 'w';
-  const zone1Key = r.isPlayer2 ? 'p' : 'v';
-  
+  // Climb Action trigger (V for Player 1, P for Player 2)
+  const climbKey = r.isPlayer2 ? 'p' : 'v';
   const z1T = inZone1(r);
   let shouldAttach = false;
   let attachT = 0.05;
 
-  if (KEYS[zone1Key] && z1T !== null) {
-    shouldAttach = true;
-    attachT = Math.max(0.05, z1T);
-  } else if ((KEYS[climbKey] || KEYS[upKey]) && inContactZone(r)) {
-    shouldAttach = true;
-    attachT = 0.05;
+  if (KEYS[climbKey]) {
+    if (z1T !== null) {
+      shouldAttach = true;
+      attachT = Math.max(0.05, z1T);
+    } else if (inContactZone(r)) {
+      shouldAttach = true;
+      attachT = 0.05;
+    }
   }
 
   if (shouldAttach) {
@@ -747,7 +746,7 @@ function updatePlayerRobot(r, dt) {
 // ── 7.5 CLIMBING UPDATER (Runs for both player & bot climbers) ────
 function updateClimbingRobot(r, dt) {
   if (r.isPlayer) {
-    const climbKey = r.isPlayer2 ? 'i' : 'o';
+    const climbKey = r.isPlayer2 ? 'p' : 'v';
     const upKey = r.isPlayer2 ? 'arrowup' : 'w';
     const downKey = r.isPlayer2 ? 'arrowdown' : 's';
     
@@ -1337,8 +1336,8 @@ function drawFieldBase(c, cEl) {
   // Zonas de Disparo y Fire Shields
   drawZoneCtx(c, ZONES.shootRedZone, 'rgba(232,48,72,0.04)', 'rgba(232,48,72,0.08)', cEl);
   drawZoneCtx(c, ZONES.shootBlueZone, 'rgba(51,119,255,0.04)', 'rgba(51,119,255,0.08)', cEl);
-  drawZoneCtx(c, ZONES.shootRedExtension, 'rgba(255,215,0,0.04)', 'rgba(255,215,0,0.18)', cEl);
-  drawZoneCtx(c, ZONES.shootBlueExtension, 'rgba(255,215,0,0.04)', 'rgba(255,215,0,0.18)', cEl);
+  drawZoneCtx(c, ZONES.shootRedExtension, 'rgba(232,48,72,0.04)', 'rgba(232,48,72,0.08)', cEl);
+  drawZoneCtx(c, ZONES.shootBlueExtension, 'rgba(51,119,255,0.04)', 'rgba(51,119,255,0.08)', cEl);
   drawZoneCtx(c, ZONES.fsRedZone, 'rgba(232,48,72,0.03)', 'rgba(232,48,72,0.06)', cEl);
   drawZoneCtx(c, ZONES.fsBlueZone, 'rgba(51,119,255,0.03)', 'rgba(51,119,255,0.06)', cEl);
 
