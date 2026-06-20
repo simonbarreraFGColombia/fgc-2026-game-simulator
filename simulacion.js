@@ -46,6 +46,58 @@ const BRACE_LENGTH = Math.sqrt(
 
 const CLIMB_VALUES = { none: 0, contact: 0.05, z1: 0.10, z2: 0.20, z3: 0.30 };
 
+const OBSTACLES = [
+  { x: 1.6,  y: 0.0,  w: 1.2, h: 0.7 }, // supRed
+  { x: 4.2,  y: 0.0,  w: 1.2, h: 0.7 }, // supBlue
+  { x: 2.8,  y: 0.0,  w: 1.4, h: 0.7 }, // extinguisher
+  { x: 0.0,  y: 6.4,  w: 0.6, h: 0.6 }, // fireShieldRed
+  { x: 6.4,  y: 6.4,  w: 0.6, h: 0.6 }  // fireShieldBlue
+];
+
+function resolveObstacleCollision(obj, radius, isBall = false) {
+  OBSTACLES.forEach(obs => {
+    const px = Math.max(obs.x, Math.min(obj.x, obs.x + obs.w));
+    const py = Math.max(obs.y, Math.min(obj.y, obs.y + obs.h));
+    
+    const dx = obj.x - px;
+    const dy = obj.y - py;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist < radius) {
+      let nx = 0, ny = 0;
+      let overlap = 0;
+      
+      if (dist > 0.0001) {
+        nx = dx / dist;
+        ny = dy / dist;
+        overlap = radius - dist;
+      } else {
+        const dl = obj.x - obs.x;
+        const dr = (obs.x + obs.w) - obj.x;
+        const dt = obj.y - obs.y;
+        const db = (obs.y + obs.h) - obj.y;
+        
+        const minVal = Math.min(dl, dr, dt, db);
+        if (minVal === dl) { nx = -1; overlap = radius + dl; }
+        else if (minVal === dr) { nx = 1; overlap = radius + dr; }
+        else if (minVal === dt) { ny = -1; overlap = radius + dt; }
+        else { ny = 1; overlap = radius + db; }
+      }
+      
+      obj.x += nx * overlap;
+      obj.y += ny * overlap;
+      
+      if (isBall) {
+        const velDotNormal = obj.vx * nx + obj.vy * ny;
+        if (velDotNormal < 0) {
+          obj.vx = (obj.vx - 2 * velDotNormal * nx) * 0.5;
+          obj.vy = (obj.vy - 2 * velDotNormal * ny) * 0.5;
+        }
+      }
+    }
+  });
+}
+
 // Colors
 const COL = {
   fieldBg: '#0a0c14',
@@ -306,7 +358,7 @@ function initBalls() {
       x = 0.5 + Math.random() * 6.0;
       y = 0.5 + Math.random() * 6.0;
     }
-    balls.push({
+    const b = {
       x: x,
       y: y,
       vx: 0,
@@ -316,7 +368,9 @@ function initBalls() {
       targetX: 0,
       targetY: 0,
       targetZone: null,
-    });
+    };
+    resolveObstacleCollision(b, BALL_RADIUS_M, false);
+    balls.push(b);
   }
 }
 
@@ -374,6 +428,8 @@ function updateBalls(dt) {
       if (b.x > FIELD_M - BALL_RADIUS_M) { b.x = FIELD_M - BALL_RADIUS_M; b.vx = -Math.abs(b.vx) * 0.5; }
       if (b.y < BALL_RADIUS_M) { b.y = BALL_RADIUS_M; b.vy = Math.abs(b.vy) * 0.5; }
       if (b.y > FIELD_M - BALL_RADIUS_M) { b.y = FIELD_M - BALL_RADIUS_M; b.vy = -Math.abs(b.vy) * 0.5; }
+      
+      resolveObstacleCollision(b, BALL_RADIUS_M, true);
     } else if (b.state === 'flying') {
       const dx = b.targetX - b.x;
       const dy = b.targetY - b.y;
@@ -401,6 +457,7 @@ function updateBalls(dt) {
           b.state = 'field';
           b.vx = (Math.random() - 0.5) * 3;
           b.vy = (Math.random() - 0.5) * 2 + 1.5; // bounce downward
+          resolveObstacleCollision(b, BALL_RADIUS_M, true);
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
             else if (robot.isPlayer2) PLAYER2_STATS.misses++;
@@ -513,6 +570,7 @@ function initRobots() {
     r.x = pStartX;
     r.y = teamPositions[i].y;
     r.angle = pa === 'red' ? 0 : Math.PI;
+    resolveObstacleCollision(r, ROBOT_SIZE_M / 2, false);
     r.prevX = r.x;
     r.prevY = r.y;
 
@@ -548,6 +606,7 @@ function initRobots() {
     r.x = eStartX;
     r.y = teamPositions[i].y;
     r.angle = ea === 'red' ? 0 : Math.PI;
+    resolveObstacleCollision(r, ROBOT_SIZE_M / 2, false);
     r.prevX = r.x;
     r.prevY = r.y;
 
@@ -642,6 +701,8 @@ function updatePlayerRobot(r, dt) {
   const half = ROBOT_SIZE_M / 2;
   r.x = Math.max(half, Math.min(FIELD_M - half, r.x));
   r.y = Math.max(half, Math.min(FIELD_M - half, r.y));
+
+  resolveObstacleCollision(r, half);
 
   // Track mileage
   const dx = r.x - r.prevX;
@@ -1067,6 +1128,8 @@ function moveToward(robot, tx, ty, dt) {
   robot.x = Math.max(half, Math.min(FIELD_M - half, robot.x));
   robot.y = Math.max(half, Math.min(FIELD_M - half, robot.y));
 
+  resolveObstacleCollision(robot, half);
+
   pushBallsFromRobot(robot);
 }
 
@@ -1186,6 +1249,7 @@ function updateHumanPlayers(dt) {
         balls[th.ballIdx].y = th.targetY;
         balls[th.ballIdx].vx = (Math.random() - 0.5) * 3;
         balls[th.ballIdx].vy = 2.0 + Math.random() * 2.0;
+        resolveObstacleCollision(balls[th.ballIdx], BALL_RADIUS_M, true);
         playSound('shoot');
       }
       activeThrows.splice(i, 1);
