@@ -98,6 +98,103 @@ function resolveObstacleCollision(obj, radius, isBall = false) {
   });
 }
 
+function resolveRobotCollisions() {
+  const minClimbTDiff = ROBOT_SIZE_M / BRACE_LENGTH;
+
+  // 1. Resolve collisions between climbing robots on the same brace
+  ['red', 'blue'].forEach(alliance => {
+    const climbers = robots.filter(r => r.alliance === alliance && r.state === 'climbing');
+    if (climbers.length > 1) {
+      // Sort by climbT
+      climbers.sort((a, b) => a.climbT - b.climbT);
+      
+      // Run a few passes to resolve multi-robot overlaps
+      for (let pass = 0; pass < 3; pass++) {
+        for (let i = 1; i < climbers.length; i++) {
+          const prev = climbers[i - 1];
+          const curr = climbers[i];
+          if (curr.climbT - prev.climbT < minClimbTDiff) {
+            const overlap = minClimbTDiff - (curr.climbT - prev.climbT);
+            // Push them apart
+            prev.climbT = Math.max(0.0, prev.climbT - overlap / 2);
+            curr.climbT = Math.min(1.0, curr.climbT + overlap / 2);
+            
+            // Adjust bounds
+            if (prev.climbT === 0.0) {
+              curr.climbT = minClimbTDiff;
+            }
+            if (curr.climbT === 1.0) {
+              prev.climbT = 1.0 - minClimbTDiff;
+            }
+          }
+        }
+      }
+      
+      // Update coordinates for all climbers after adjustment
+      climbers.forEach(r => {
+        const brace = BRACES[r.alliance];
+        r.x = brace.startX + (brace.endX - brace.startX) * r.climbT;
+        r.y = brace.startY + (brace.endY - brace.startY) * r.climbT;
+      });
+    }
+  });
+
+  // 2. Resolve collisions between field robots, or field vs climbing robots
+  // We run multiple passes of pairwise circle-circle collision resolution to resolve overlaps cleanly
+  for (let pass = 0; pass < 4; pass++) {
+    for (let i = 0; i < robots.length; i++) {
+      for (let j = i + 1; j < robots.length; j++) {
+        const r1 = robots[i];
+        const r2 = robots[j];
+        
+        // If both are climbing, we already handled it above, skip
+        if (r1.state === 'climbing' && r2.state === 'climbing') continue;
+        
+        const dx = r2.x - r1.x;
+        const dy = r2.y - r1.y;
+        const dist = Math.hypot(dx, dy);
+        const minDist = ROBOT_SIZE_M;
+        
+        if (dist < minDist) {
+          const overlap = minDist - dist;
+          const nx = dist > 0.0001 ? dx / dist : (Math.random() - 0.5 || 1);
+          const ny = dist > 0.0001 ? dy / dist : 0;
+          
+          if (r1.state === 'climbing') {
+            // Only push r2 (field robot)
+            r2.x += nx * overlap;
+            r2.y += ny * overlap;
+          } else if (r2.state === 'climbing') {
+            // Only push r1 (field robot)
+            r1.x -= nx * overlap;
+            r1.y -= ny * overlap;
+          } else {
+            // Both are on the field, push both equally
+            r1.x -= nx * (overlap / 2);
+            r1.y -= ny * (overlap / 2);
+            r2.x += nx * (overlap / 2);
+            r2.y += ny * (overlap / 2);
+          }
+          
+          // Re-clamp field robots to boundaries
+          const half = ROBOT_SIZE_M / 2;
+          if (r1.state !== 'climbing') {
+            r1.x = Math.max(half, Math.min(FIELD_M - half, r1.x));
+            r1.y = Math.max(half, Math.min(FIELD_M - half, r1.y));
+            // Apply obstacle collision immediately to stay out of obstacles
+            resolveObstacleCollision(r1, half);
+          }
+          if (r2.state !== 'climbing') {
+            r2.x = Math.max(half, Math.min(FIELD_M - half, r2.x));
+            r2.y = Math.max(half, Math.min(FIELD_M - half, r2.y));
+            resolveObstacleCollision(r2, half);
+          }
+        }
+      }
+    }
+  }
+}
+
 // Colors
 const COL = {
   fieldBg: '#0a0c14',
@@ -381,7 +478,7 @@ let spatialGrid = {};
 function rebuildSpatialGrid() {
   spatialGrid = {};
   balls.forEach((b, idx) => {
-    if (b.state !== 'field') return;
+    if (b.state !== 'field' || b.isOutAtTop) return;
     const gx = Math.floor(b.x / GRID_SIZE);
     const gy = Math.floor(b.y / GRID_SIZE);
     const key = `${gx}_${gy}`;
@@ -426,10 +523,22 @@ function updateBalls(dt) {
       // Arena bounds bounce
       if (b.x < BALL_RADIUS_M) { b.x = BALL_RADIUS_M; b.vx = Math.abs(b.vx) * 0.5; }
       if (b.x > FIELD_M - BALL_RADIUS_M) { b.x = FIELD_M - BALL_RADIUS_M; b.vx = -Math.abs(b.vx) * 0.5; }
-      if (b.y < BALL_RADIUS_M) { b.y = BALL_RADIUS_M; b.vy = Math.abs(b.vy) * 0.5; }
-      if (b.y > FIELD_M - BALL_RADIUS_M) { b.y = FIELD_M - BALL_RADIUS_M; b.vy = -Math.abs(b.vy) * 0.5; }
       
-      resolveObstacleCollision(b, BALL_RADIUS_M, true);
+      if (b.isOutAtTop) {
+        // Constrain to the upper margin area outside the field
+        const minY = -0.55 + BALL_RADIUS_M;
+        const maxY = 0.0 - BALL_RADIUS_M;
+        if (b.y < minY) { b.y = minY; b.vy = Math.abs(b.vy) * 0.5; }
+        if (b.y > maxY) { b.y = maxY; b.vy = -Math.abs(b.vy) * 0.5; }
+      } else {
+        // Normal field bounds
+        const minY = BALL_RADIUS_M;
+        const maxY = FIELD_M - BALL_RADIUS_M;
+        if (b.y < minY) { b.y = minY; b.vy = Math.abs(b.vy) * 0.5; }
+        if (b.y > maxY) { b.y = maxY; b.vy = -Math.abs(b.vy) * 0.5; }
+        
+        resolveObstacleCollision(b, BALL_RADIUS_M, true);
+      }
     } else if (b.state === 'flying') {
       const dx = b.targetX - b.x;
       const dy = b.targetY - b.y;
@@ -455,9 +564,11 @@ function updateBalls(dt) {
         } else {
           // Missed
           b.state = 'field';
+          b.isOutAtTop = true;
+          b.x = b.targetX + (Math.random() - 0.5) * 0.3;
+          b.y = -0.15;
           b.vx = (Math.random() - 0.5) * 3;
-          b.vy = (Math.random() - 0.5) * 2 + 1.5; // bounce downward
-          resolveObstacleCollision(b, BALL_RADIUS_M, true);
+          b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
             else if (robot.isPlayer2) PLAYER2_STATS.misses++;
@@ -895,7 +1006,7 @@ function updateBotAI(robot, dt) {
   r.aiWait = Math.max(0, r.aiWait - dt);
 
   // Climbing trigger conditions
-  const fieldBallsCount = balls.filter(b => b.state === 'field').length;
+  const fieldBallsCount = balls.filter(b => b.state === 'field' && !b.isOutAtTop).length;
   const shouldClimb = (matchTime <= 30) || (fieldBallsCount === 0);
 
   if (shouldClimb) {
@@ -946,7 +1057,7 @@ function updateBotAI(robot, dt) {
       if (r.aiTarget !== null) {
         if (typeof r.aiTarget === 'number') {
           const b = balls[r.aiTarget];
-          if (b && b.state === 'field') {
+          if (b && b.state === 'field' && !b.isOutAtTop) {
             bestX = b.x;
             bestY = b.y;
             hasValidTarget = true;
@@ -1069,7 +1180,7 @@ function updateBotAI(robot, dt) {
 
     case 'seek_climb': {
       // Check if climbing is allowed
-      const fieldBallsCount = balls.filter(b => b.state === 'field').length;
+      const fieldBallsCount = balls.filter(b => b.state === 'field' && !b.isOutAtTop).length;
       const shouldClimb = (matchTime <= 30) || (fieldBallsCount === 0);
       if (!shouldClimb) {
         r.aiState = 'seek_balls';
@@ -1244,12 +1355,13 @@ function updateHumanPlayers(dt) {
         playSound('extinguisher');
         createSplash(th.targetX, th.targetY, COL.ball);
       } else {
-        balls[th.ballIdx].state = 'field';
-        balls[th.ballIdx].x = th.targetX;
-        balls[th.ballIdx].y = th.targetY;
-        balls[th.ballIdx].vx = (Math.random() - 0.5) * 3;
-        balls[th.ballIdx].vy = 2.0 + Math.random() * 2.0;
-        resolveObstacleCollision(balls[th.ballIdx], BALL_RADIUS_M, true);
+        const b = balls[th.ballIdx];
+        b.state = 'field';
+        b.isOutAtTop = true;
+        b.x = th.targetX + (Math.random() - 0.5) * 0.3;
+        b.y = -0.15;
+        b.vx = (Math.random() - 0.5) * 3;
+        b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
         playSound('shoot');
       }
       activeThrows.splice(i, 1);
@@ -1903,6 +2015,8 @@ function gameLoop(timestamp) {
       }
     });
 
+    resolveRobotCollisions();
+
     updateBalls(dt);
     updateHumanPlayers(dt);
     updateHUD();
@@ -2029,7 +2143,7 @@ function updateHUD() {
     }
   }
 
-  const fieldCount = balls.filter(b => b.state === 'field').length;
+  const fieldCount = balls.filter(b => b.state === 'field' && !b.isOutAtTop).length;
   document.getElementById('hudFieldBalls').textContent = fieldCount;
 }
 
