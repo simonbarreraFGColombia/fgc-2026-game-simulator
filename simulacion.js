@@ -562,23 +562,24 @@ function updateBalls(dt) {
             else if (robot.isPlayer2) PLAYER2_STATS.hits++;
           }
         } else {
-          // Missed
+          // Missed — robot shot
           b.state = 'field';
+          // Red splash at miss point
+          createSplash(b.targetX, b.targetY, '#ff4444');
           if (Math.random() < 0.01) {
             // 1% chance: goes out of the field at the top
             b.isOutAtTop = true;
             b.x = b.targetX + (Math.random() - 0.5) * 0.3;
             b.y = -0.15;
             b.vx = (Math.random() - 0.5) * 3;
-            b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
+            b.vy = -(Math.random() * 1.5 + 1.0);
           } else {
             // 99% chance: bounces back inside the field
             b.isOutAtTop = false;
-            // Spawn below the suppression units (y=0.7 is the bottom edge of the obstacles)
             b.x = b.targetX + (Math.random() - 0.5) * 1.5;
             b.y = 0.8 + Math.random() * 0.5;
             b.vx = (Math.random() - 0.5) * 3;
-            b.vy = 1.5 + Math.random() * 2.0; // bounce downward into the field
+            b.vy = 1.5 + Math.random() * 2.0;
           }
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
@@ -1280,6 +1281,7 @@ let hpRedThrowTimer = 0;
 let hpBlueThrowTimer = 0;
 
 let activeThrows = [];
+let activeBounces = [];
 let visualSplashes = [];
 
 function handleHumanPlayer(ballIdx, alliance) {
@@ -1366,25 +1368,32 @@ function updateHumanPlayers(dt) {
         playSound('extinguisher');
         createSplash(th.targetX, th.targetY, COL.ball);
       } else {
-        const b = balls[th.ballIdx];
-        b.state = 'field';
-        if (Math.random() < 0.01) {
-          // 1% chance: goes out of the field at the top
-          b.isOutAtTop = true;
-          b.x = th.targetX + (Math.random() - 0.5) * 0.3;
-          b.y = -0.15;
-          b.vx = (Math.random() - 0.5) * 3;
-          b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
-        } else {
-          // 99% chance: bounces back inside the field
-          b.isOutAtTop = false;
-          // Spawn below the suppression units (y=0.7 is the bottom edge of the obstacles)
-          b.x = th.targetX + (Math.random() - 0.5) * 1.5;
-          b.y = 0.8 + Math.random() * 0.5;
-          b.vx = (Math.random() - 0.5) * 3;
-          b.vy = 1.5 + Math.random() * 2.0; // bounce downward into the field
-        }
+        // Miss — create a bounce-back animation instead of teleporting
+        createSplash(th.targetX, th.targetY, '#ff4444'); // Red miss splash
         playSound('shoot');
+        
+        const isOut = Math.random() < 0.01;
+        const landX = isOut
+          ? th.targetX + (Math.random() - 0.5) * 0.3
+          : th.targetX + (Math.random() - 0.5) * 1.5;
+        const landY = isOut ? -0.15 : 0.8 + Math.random() * 0.5;
+        
+        activeBounces.push({
+          ballIdx: th.ballIdx,
+          startX: th.targetX,
+          startY: th.targetY,
+          x: th.targetX,
+          y: th.targetY,
+          landX: landX,
+          landY: landY,
+          t: 0.0,
+          duration: 0.45,
+          isOut: isOut,
+          landVx: (Math.random() - 0.5) * 3,
+          landVy: isOut ? -(Math.random() * 1.5 + 1.0) : (1.5 + Math.random() * 2.0)
+        });
+        
+        balls[th.ballIdx].state = 'bouncing_back';
       }
       activeThrows.splice(i, 1);
     } else {
@@ -1394,6 +1403,30 @@ function updateHumanPlayers(dt) {
       
       balls[th.ballIdx].x = th.x;
       balls[th.ballIdx].y = th.y;
+    }
+  }
+
+  // Update active bounces (miss bounce-back animations)
+  for (let i = activeBounces.length - 1; i >= 0; i--) {
+    const bn = activeBounces[i];
+    bn.t += dt / bn.duration;
+    
+    if (bn.t >= 1.0) {
+      const b = balls[bn.ballIdx];
+      b.state = 'field';
+      b.isOutAtTop = bn.isOut;
+      b.x = bn.landX;
+      b.y = bn.landY;
+      b.vx = bn.landVx;
+      b.vy = bn.landVy;
+      activeBounces.splice(i, 1);
+    } else {
+      const t = bn.t;
+      bn.x = bn.startX + (bn.landX - bn.startX) * t;
+      bn.y = bn.startY + (bn.landY - bn.startY) * t - Math.sin(t * Math.PI) * 0.6;
+      
+      balls[bn.ballIdx].x = bn.x;
+      balls[bn.ballIdx].y = bn.y;
     }
   }
 
@@ -1825,6 +1858,16 @@ function renderBalls(c, cEl) {
       c.fill();
       c.shadowColor = 'transparent';
       c.shadowBlur = 0;
+    } else if (b.state === 'bouncing_back') {
+      // Miss bounce-back ball (red tinted)
+      c.fillStyle = '#ff4444';
+      c.shadowColor = 'rgba(255,68,68,0.6)';
+      c.shadowBlur = 6;
+      c.beginPath();
+      c.arc(mToP(b.x, cEl), mToP(b.y, cEl), ballR + 1, 0, Math.PI * 2);
+      c.fill();
+      c.shadowColor = 'transparent';
+      c.shadowBlur = 0;
     }
   });
 }
@@ -2213,6 +2256,7 @@ function startMatch() {
   hpRedThrowTimer = 0;
   hpBlueThrowTimer = 0;
   activeThrows = [];
+  activeBounces = [];
   visualSplashes = [];
   matchTime = MATCH_DURATION;
   timeSpeed = 1;
