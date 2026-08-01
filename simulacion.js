@@ -563,24 +563,34 @@ function updateBalls(dt) {
           }
         } else {
           // Missed — robot shot
-          b.state = 'field';
           // Red splash at miss point
           createSplash(b.targetX, b.targetY, '#ff4444');
-          if (Math.random() < 0.01) {
-            // 1% chance: goes out of the field at the top
-            b.isOutAtTop = true;
-            b.x = b.targetX + (Math.random() - 0.5) * 0.3;
-            b.y = -0.15;
-            b.vx = (Math.random() - 0.5) * 3;
-            b.vy = -(Math.random() * 1.5 + 1.0);
-          } else {
-            // 99% chance: bounces back inside the field
-            b.isOutAtTop = false;
-            b.x = b.targetX + (Math.random() - 0.5) * 1.5;
-            b.y = 0.8 + Math.random() * 0.5;
-            b.vx = (Math.random() - 0.5) * 3;
-            b.vy = 1.5 + Math.random() * 2.0;
-          }
+          
+          const isOut = Math.random() < 0.01;
+          const landX = isOut
+            ? b.targetX + (Math.random() - 0.5) * 0.3
+            : b.targetX + (Math.random() - 0.5) * 1.5;
+          const landY = isOut ? -0.15 : 0.8 + Math.random() * 0.5;
+
+          const ballIdx = balls.indexOf(b);
+
+          activeBounces.push({
+            ballIdx: ballIdx,
+            startX: b.targetX,
+            startY: b.targetY,
+            x: b.targetX,
+            y: b.targetY,
+            landX: landX,
+            landY: landY,
+            t: 0.0,
+            duration: 0.45,
+            isOut: isOut,
+            landVx: (Math.random() - 0.5) * 3,
+            landVy: isOut ? -(Math.random() * 1.5 + 1.0) : (1.5 + Math.random() * 2.0)
+          });
+          
+          b.state = 'bouncing_back';
+
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
             else if (robot.isPlayer2) PLAYER2_STATS.misses++;
