@@ -564,11 +564,22 @@ function updateBalls(dt) {
         } else {
           // Missed
           b.state = 'field';
-          b.isOutAtTop = true;
-          b.x = b.targetX + (Math.random() - 0.5) * 0.3;
-          b.y = -0.15;
-          b.vx = (Math.random() - 0.5) * 3;
-          b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
+          if (Math.random() < 0.01) {
+            // 1% chance: goes out of the field at the top
+            b.isOutAtTop = true;
+            b.x = b.targetX + (Math.random() - 0.5) * 0.3;
+            b.y = -0.15;
+            b.vx = (Math.random() - 0.5) * 3;
+            b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
+          } else {
+            // 99% chance: bounces back inside the field
+            b.isOutAtTop = false;
+            b.x = b.targetX;
+            b.y = b.targetY;
+            b.vx = (Math.random() - 0.5) * 3;
+            b.vy = (Math.random() - 0.5) * 2 + 1.5; // bounce downward
+            resolveObstacleCollision(b, BALL_RADIUS_M, true);
+          }
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
             else if (robot.isPlayer2) PLAYER2_STATS.misses++;
@@ -1357,11 +1368,22 @@ function updateHumanPlayers(dt) {
       } else {
         const b = balls[th.ballIdx];
         b.state = 'field';
-        b.isOutAtTop = true;
-        b.x = th.targetX + (Math.random() - 0.5) * 0.3;
-        b.y = -0.15;
-        b.vx = (Math.random() - 0.5) * 3;
-        b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
+        if (Math.random() < 0.01) {
+          // 1% chance: goes out of the field at the top
+          b.isOutAtTop = true;
+          b.x = th.targetX + (Math.random() - 0.5) * 0.3;
+          b.y = -0.15;
+          b.vx = (Math.random() - 0.5) * 3;
+          b.vy = -(Math.random() * 1.5 + 1.0); // bounce upward
+        } else {
+          // 99% chance: bounces back inside the field
+          b.isOutAtTop = false;
+          b.x = th.targetX;
+          b.y = th.targetY;
+          b.vx = (Math.random() - 0.5) * 3;
+          b.vy = 2.0 + Math.random() * 2.0; // bounce downward
+          resolveObstacleCollision(b, BALL_RADIUS_M, true);
+        }
         playSound('shoot');
       }
       activeThrows.splice(i, 1);
