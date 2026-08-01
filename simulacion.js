@@ -574,11 +574,11 @@ function updateBalls(dt) {
           } else {
             // 99% chance: bounces back inside the field
             b.isOutAtTop = false;
-            b.x = b.targetX;
-            b.y = b.targetY;
+            // Spawn below the suppression units (y=0.7 is the bottom edge of the obstacles)
+            b.x = b.targetX + (Math.random() - 0.5) * 1.5;
+            b.y = 0.8 + Math.random() * 0.5;
             b.vx = (Math.random() - 0.5) * 3;
-            b.vy = (Math.random() - 0.5) * 2 + 1.5; // bounce downward
-            resolveObstacleCollision(b, BALL_RADIUS_M, true);
+            b.vy = 1.5 + Math.random() * 2.0; // bounce downward into the field
           }
           if (robot) {
             if (robot.isPlayer1) PLAYER_STATS.misses++;
@@ -1378,11 +1378,11 @@ function updateHumanPlayers(dt) {
         } else {
           // 99% chance: bounces back inside the field
           b.isOutAtTop = false;
-          b.x = th.targetX;
-          b.y = th.targetY;
+          // Spawn below the suppression units (y=0.7 is the bottom edge of the obstacles)
+          b.x = th.targetX + (Math.random() - 0.5) * 1.5;
+          b.y = 0.8 + Math.random() * 0.5;
           b.vx = (Math.random() - 0.5) * 3;
-          b.vy = 2.0 + Math.random() * 2.0; // bounce downward
-          resolveObstacleCollision(b, BALL_RADIUS_M, true);
+          b.vy = 1.5 + Math.random() * 2.0; // bounce downward into the field
         }
         playSound('shoot');
       }
