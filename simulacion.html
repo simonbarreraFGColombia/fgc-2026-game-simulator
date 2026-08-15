@@ -202,6 +202,26 @@
             </div>
           </div>
 
+          <!-- Gamepad Config Card -->
+          <div class="config-card gamepad-card">
+            <div class="config-card-header">
+              <span class="config-icon">🎮</span>
+              <h3>CONTROL POR MANDO</h3>
+            </div>
+            <div class="gamepad-status-row">
+              <div class="gamepad-status-info">
+                <span class="gamepad-status-badge disconnected" id="gamepadStatusBadge">
+                  <span class="status-dot"></span>
+                  <span id="gamepadStatusText">Sin Mando Conectado</span>
+                </span>
+                <span class="gamepad-subtext" id="gamepadSubtext">Conecta tu mando PlayStation por USB y presiona cualquier botón</span>
+              </div>
+              <button type="button" class="gamepad-map-btn" id="openGamepadModalBtn">
+                ⚙️ Mapear Botones
+              </button>
+            </div>
+          </div>
+
           <!-- Start Button -->
           <button class="start-match-btn" id="startMatchBtn">
             <span class="start-icon">▶</span>
@@ -272,6 +292,7 @@
               <div class="center-timer" id="gsTimer">2:30</div>
               <button id="btnSpeedToggle" class="speed-toggle-btn" title="Velocidad del Tiempo">⚡ 1x</button>
               <button id="btnEndMatch" class="end-match-toggle-btn" title="Terminar Partido">⏹ Terminar</button>
+              <button id="btnHudGamepad" class="hud-gamepad-btn" title="Configurar Mando">🎮</button>
             </div>
             <div class="center-field-balls">🔥 En Campo: <strong id="hudFieldBalls">500</strong></div>
           </div>
@@ -387,6 +408,88 @@
         <div class="results-actions">
           <button class="result-btn primary" id="playAgainBtn">▶ Jugar Otra Vez</button>
           <button class="result-btn secondary" id="goCalcBtn">📋 Ir a Calculadora</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         GAMEPAD MAPPING MODAL
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="modal-overlay" id="gamepadModal" style="display:none;">
+      <div class="gamepad-modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span class="modal-icon">🎮</span>
+            <div>
+              <h2>MAPEO DE MANDO PLAYSTATION</h2>
+              <span class="modal-subtitle">Conexión USB / Bluetooth y asignación de botones</span>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="closeGamepadModalBtn" title="Cerrar">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Device Info Banner -->
+          <div class="gp-device-banner" id="gpDeviceBanner">
+            <div class="gp-device-icon">🎮</div>
+            <div class="gp-device-details">
+              <strong id="modalGpDeviceName">Buscando mando...</strong>
+              <span id="modalGpDeviceStatus">Conecta tu mando por USB/Bluetooth y pulsa cualquier botón para activarlo.</span>
+            </div>
+            <div class="gp-device-pill disconnected" id="modalGpPill">Desconectado</div>
+          </div>
+
+          <!-- Player Assign Setting -->
+          <div class="modal-group">
+            <div class="modal-group-title">
+              <span>👤 ASIGNACIÓN DEL MANDO</span>
+              <span class="group-hint">Elige a qué robot controla este mando</span>
+            </div>
+            <div class="toggle-group" id="gpPlayerAssignToggle">
+              <button class="toggle-btn active" data-value="1">👤 Jugador 1 (WASD)</button>
+              <button class="toggle-btn" data-value="2">👥 Jugador 2 (Flechas)</button>
+              <button class="toggle-btn" data-value="0">❌ Desactivado</button>
+            </div>
+          </div>
+
+          <!-- Live Interactive Tester -->
+          <div class="modal-group">
+            <div class="modal-group-title">
+              <span>🕹️ MONITOR DE ENTRADAS EN VIVO</span>
+              <span class="group-hint">Presiona botones o mueve los sticks para verificar la respuesta</span>
+            </div>
+            <div class="gp-live-tester" id="gpLiveTester">
+              <div class="gp-stick-preview" id="gpStickPreview">
+                <div class="gp-stick-base">
+                  <div class="gp-stick-thumb" id="gpStickThumb"></div>
+                </div>
+                <span class="gp-stick-label">Stick Izq (Movimiento)</span>
+              </div>
+              <div class="gp-buttons-grid" id="gpButtonsGrid">
+                <!-- Dynamically updated badge buttons -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions Mapping Table -->
+          <div class="modal-group">
+            <div class="modal-group-title">
+              <span>⚙️ CONFIGURACIÓN DE ACCIONES</span>
+              <span class="group-hint">Haz clic en 'Reasignar' y luego presiona el botón deseado en tu mando</span>
+            </div>
+            <div class="gp-actions-list" id="gpActionsList">
+              <!-- Dynamically populated rows for pickup, shoot, climb, etc. -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="gp-footer-btn secondary" id="resetGamepadBtn">
+            ↺ Restablecer (PlayStation Defecto)
+          </button>
+          <button type="button" class="gp-footer-btn primary" id="saveGamepadBtn">
+            ✓ Guardar y Cerrar
+          </button>
         </div>
       </div>
     </div>

@@ -441,6 +441,384 @@ window.addEventListener('keyup', e => {
   KEYS[e.key.toLowerCase()] = false;
 });
 
+// ── 4.5 GAMEPAD & PLAYSTATION CONTROLLER SYSTEM ─────────────────
+const PS_BUTTONS = {
+  0: { label: '✕ Cruz (Cross)', short: '✕', css: 'ps-cross' },
+  1: { label: '○ Círculo (Circle)', short: '○', css: 'ps-circle' },
+  2: { label: '□ Cuadrado (Square)', short: '□', css: 'ps-square' },
+  3: { label: '△ Triángulo (Triangle)', short: '△', css: 'ps-triangle' },
+  4: { label: 'L1 (Bumper Izq)', short: 'L1', css: 'ps-bumper' },
+  5: { label: 'R1 (Bumper Der)', short: 'R1', css: 'ps-bumper' },
+  6: { label: 'L2 (Gatillo Izq)', short: 'L2', css: 'ps-trigger' },
+  7: { label: 'R2 (Gatillo Der)', short: 'R2', css: 'ps-trigger' },
+  8: { label: 'Share / Create', short: 'Share', css: 'ps-sys' },
+  9: { label: 'Options / Start', short: 'Options', css: 'ps-sys' },
+  10: { label: 'L3 (Stick Izq Click)', short: 'L3', css: 'ps-stick' },
+  11: { label: 'R3 (Stick Der Click)', short: 'R3', css: 'ps-stick' },
+  12: { label: 'D-Pad Arriba', short: '▲ Arriba', css: 'ps-dpad' },
+  13: { label: 'D-Pad Abajo', short: '▼ Abajo', css: 'ps-dpad' },
+  14: { label: 'D-Pad Izquierda', short: '◄ Izq', css: 'ps-dpad' },
+  15: { label: 'D-Pad Derecha', short: '► Der', css: 'ps-dpad' },
+  16: { label: 'PS (Home)', short: 'PS', css: 'ps-sys' },
+  17: { label: 'Touchpad', short: 'Touchpad', css: 'ps-sys' }
+};
+
+const DEFAULT_GAMEPAD_CONFIG = {
+  player: 1, // 1: P1, 2: P2, 0: Disabled
+  deadzone: 0.18,
+  mappings: {
+    pickup: 7,     // R2 (Gatillo Der)
+    shoot: 5,      // R1 (Bumper Der)
+    climb: 3,      // △ (Triángulo)
+    climbUp: 12,   // D-Pad Arriba
+    climbDown: 13, // D-Pad Abajo
+  }
+};
+
+const GAMEPAD_ACTIONS = [
+  { id: 'pickup', name: 'Recoger Pelotas (Intake)', desc: 'Recoge pelotas cercanas en el suelo del campo', defaultBtn: 7 },
+  { id: 'shoot', name: 'Disparar / Lanzar (Shoot)', desc: 'Dispara a la Suppression Unit o al Humano', defaultBtn: 5 },
+  { id: 'climb', name: 'Enganchar Rampa (Climb)', desc: 'Se acopla a la rampa de escalada', defaultBtn: 3 },
+  { id: 'climbUp', name: 'Subir en Rampa', desc: 'Avanza hacia arriba en la rampa', defaultBtn: 12 },
+  { id: 'climbDown', name: 'Bajar en Rampa', desc: 'Desciende en la rampa', defaultBtn: 13 },
+];
+
+let GAMEPAD_CONFIG = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_CONFIG));
+let connectedGamepadIndex = null;
+let listeningRebindAction = null;
+
+function loadGamepadConfig() {
+  try {
+    const saved = localStorage.getItem('fgc_2026_gamepad_config');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      GAMEPAD_CONFIG = Object.assign({}, DEFAULT_GAMEPAD_CONFIG, parsed);
+      GAMEPAD_CONFIG.mappings = Object.assign({}, DEFAULT_GAMEPAD_CONFIG.mappings, parsed.mappings);
+    }
+  } catch (e) {
+    console.warn('Error loading gamepad config:', e);
+  }
+}
+
+function saveGamepadConfig() {
+  try {
+    localStorage.setItem('fgc_2026_gamepad_config', JSON.stringify(GAMEPAD_CONFIG));
+  } catch (e) {
+    console.warn('Error saving gamepad config:', e);
+  }
+}
+
+function getActiveGamepad(playerNum = null) {
+  const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+  if (!gamepads) return null;
+  
+  if (playerNum !== null) {
+    if (GAMEPAD_CONFIG.player === 0 || GAMEPAD_CONFIG.player !== playerNum) {
+      return null;
+    }
+  } else if (GAMEPAD_CONFIG.player === 0) {
+    return null;
+  }
+
+  for (let i = 0; i < gamepads.length; i++) {
+    const gp = gamepads[i];
+    if (gp && gp.connected) {
+      connectedGamepadIndex = i;
+      return gp;
+    }
+  }
+  return null;
+}
+
+function isGamepadButtonPressed(gp, btnIndex) {
+  if (!gp || !gp.buttons || btnIndex === undefined || btnIndex === null) return false;
+  const btn = gp.buttons[btnIndex];
+  if (!btn) return false;
+  return typeof btn === 'object' ? (btn.pressed || btn.value > 0.35) : btn > 0.35;
+}
+
+function isGamepadActionActive(actionId, playerNum) {
+  const gp = getActiveGamepad(playerNum);
+  if (!gp) return false;
+  const btnIndex = GAMEPAD_CONFIG.mappings[actionId];
+  return isGamepadButtonPressed(gp, btnIndex);
+}
+
+function getGamepadMoveVector(playerNum) {
+  const gp = getActiveGamepad(playerNum);
+  if (!gp) return { x: 0, y: 0, magnitude: 0 };
+
+  let x = 0, y = 0;
+
+  // 1. Analog Stick (Axes 0 and 1)
+  if (gp.axes && gp.axes.length >= 2) {
+    const ax = gp.axes[0];
+    const ay = gp.axes[1];
+    const rawMag = Math.hypot(ax, ay);
+    if (rawMag > GAMEPAD_CONFIG.deadzone) {
+      const normalizedMag = Math.min(1.0, (rawMag - GAMEPAD_CONFIG.deadzone) / (1.0 - GAMEPAD_CONFIG.deadzone));
+      x = (ax / rawMag) * normalizedMag;
+      y = (ay / rawMag) * normalizedMag;
+    }
+  }
+
+  // 2. D-Pad Support (Buttons 12: Up, 13: Down, 14: Left, 15: Right)
+  if (isGamepadButtonPressed(gp, 12)) y = -1;
+  if (isGamepadButtonPressed(gp, 13)) y = 1;
+  if (isGamepadButtonPressed(gp, 14)) x = -1;
+  if (isGamepadButtonPressed(gp, 15)) x = 1;
+
+  const mag = Math.hypot(x, y);
+  if (mag > 1.0) {
+    x /= mag;
+    y /= mag;
+  }
+  return { x: x, y: y, magnitude: Math.hypot(x, y) };
+}
+
+function updateGamepadStatusUI() {
+  const gp = getActiveGamepad();
+  const badge = document.getElementById('gamepadStatusBadge');
+  const text = document.getElementById('gamepadStatusText');
+  const subtext = document.getElementById('gamepadSubtext');
+  const hudBtn = document.getElementById('btnHudGamepad');
+  
+  const modalName = document.getElementById('modalGpDeviceName');
+  const modalStatus = document.getElementById('modalGpDeviceStatus');
+  const modalPill = document.getElementById('modalGpPill');
+
+  if (gp) {
+    const name = gp.id.length > 32 ? gp.id.slice(0, 32) + '…' : gp.id;
+    if (badge) {
+      badge.classList.remove('disconnected');
+      badge.classList.add('connected');
+    }
+    if (text) text.textContent = `Mando: ${name}`;
+    if (subtext) subtext.textContent = `Asignado a: Jugador ${GAMEPAD_CONFIG.player === 1 ? '1 (WASD)' : GAMEPAD_CONFIG.player === 2 ? '2 (Flechas)' : 'Desactivado'}`;
+    if (hudBtn) {
+      hudBtn.classList.add('connected');
+      hudBtn.title = `Mando Conectado: ${name}`;
+    }
+
+    if (modalName) modalName.textContent = gp.id;
+    if (modalStatus) modalStatus.textContent = `Mando USB/Bluetooth listo (${gp.buttons.length} botones, ${gp.axes.length} ejes analógicos)`;
+    if (modalPill) {
+      modalPill.className = 'gp-device-pill connected';
+      modalPill.textContent = 'Conectado';
+    }
+  } else {
+    if (badge) {
+      badge.classList.remove('connected');
+      badge.classList.add('disconnected');
+    }
+    if (text) text.textContent = 'Sin Mando Conectado';
+    if (subtext) subtext.textContent = 'Conecta tu mando PlayStation por USB y presiona cualquier botón';
+    if (hudBtn) {
+      hudBtn.classList.remove('connected');
+      hudBtn.title = 'Configurar Mando (Desconectado)';
+    }
+
+    if (modalName) modalName.textContent = 'Buscando mando...';
+    if (modalStatus) modalStatus.textContent = 'Conecta tu mando por USB o Bluetooth y pulsa cualquier botón para activarlo.';
+    if (modalPill) {
+      modalPill.className = 'gp-device-pill disconnected';
+      modalPill.textContent = 'Desconectado';
+    }
+  }
+}
+
+function renderGamepadModalActions() {
+  const list = document.getElementById('gpActionsList');
+  if (!list) return;
+
+  list.innerHTML = '';
+  GAMEPAD_ACTIONS.forEach(act => {
+    const currentBtn = GAMEPAD_CONFIG.mappings[act.id] !== undefined ? GAMEPAD_CONFIG.mappings[act.id] : act.defaultBtn;
+    const btnMeta = PS_BUTTONS[currentBtn] || { label: `Botón ${currentBtn}`, short: `B${currentBtn}`, css: 'ps-sys' };
+
+    const row = document.createElement('div');
+    row.className = 'gp-action-row';
+    row.innerHTML = `
+      <div class="gp-action-info">
+        <span class="gp-action-name">${act.name}</span>
+        <span class="gp-action-desc">${act.desc}</span>
+      </div>
+      <div class="gp-action-bind-controls">
+        <span class="ps-badge ${btnMeta.css}" id="badge_${act.id}">
+          ${btnMeta.label}
+        </span>
+        <button type="button" class="gp-rebind-btn ${listeningRebindAction === act.id ? 'listening' : ''}" data-action="${act.id}">
+          ${listeningRebindAction === act.id ? 'Presiona un botón...' : 'Reasignar'}
+        </button>
+      </div>
+    `;
+
+    const rebindBtn = row.querySelector('.gp-rebind-btn');
+    rebindBtn.addEventListener('click', () => {
+      if (listeningRebindAction === act.id) {
+        listeningRebindAction = null;
+        renderGamepadModalActions();
+      } else {
+        listeningRebindAction = act.id;
+        renderGamepadModalActions();
+      }
+    });
+
+    list.appendChild(row);
+  });
+}
+
+function renderGamepadTesterButtons() {
+  const grid = document.getElementById('gpButtonsGrid');
+  if (!grid) return;
+  
+  grid.innerHTML = '';
+  for (let i = 0; i <= 15; i++) {
+    const meta = PS_BUTTONS[i];
+    if (!meta) continue;
+    const el = document.createElement('div');
+    el.className = 'gp-test-badge';
+    el.id = `gp_test_btn_${i}`;
+    el.textContent = meta.short;
+    el.title = meta.label;
+    grid.appendChild(el);
+  }
+}
+
+function updateGamepadTesterLoop() {
+  const modal = document.getElementById('gamepadModal');
+  if (!modal || modal.style.display === 'none') return;
+
+  const gp = getActiveGamepad();
+  updateGamepadStatusUI();
+
+  if (gp) {
+    // 1. Update Stick thumb position
+    const thumb = document.getElementById('gpStickThumb');
+    if (thumb && gp.axes && gp.axes.length >= 2) {
+      const ax = gp.axes[0];
+      const ay = gp.axes[1];
+      const maxOffset = 18;
+      thumb.style.transform = `translate(${ax * maxOffset}px, ${ay * maxOffset}px)`;
+    }
+
+    // 2. Update button badges in tester
+    if (gp.buttons) {
+      for (let i = 0; i < gp.buttons.length; i++) {
+        const testEl = document.getElementById(`gp_test_btn_${i}`);
+        const pressed = isGamepadButtonPressed(gp, i);
+        if (testEl) {
+          if (pressed) testEl.classList.add('active');
+          else testEl.classList.remove('active');
+        }
+
+        // 3. If currently in listening mode for rebind, capture first pressed button!
+        if (listeningRebindAction && pressed) {
+          GAMEPAD_CONFIG.mappings[listeningRebindAction] = i;
+          playSound('pickup');
+          listeningRebindAction = null;
+          renderGamepadModalActions();
+          break;
+        }
+      }
+    }
+  }
+
+  requestAnimationFrame(updateGamepadTesterLoop);
+}
+
+function openGamepadModal() {
+  const modal = document.getElementById('gamepadModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  
+  const group = document.getElementById('gpPlayerAssignToggle');
+  if (group) {
+    group.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.value) === GAMEPAD_CONFIG.player);
+    });
+  }
+
+  renderGamepadModalActions();
+  renderGamepadTesterButtons();
+  updateGamepadStatusUI();
+  requestAnimationFrame(updateGamepadTesterLoop);
+}
+
+function closeGamepadModal() {
+  const modal = document.getElementById('gamepadModal');
+  if (modal) modal.style.display = 'none';
+  listeningRebindAction = null;
+  updateGamepadStatusUI();
+}
+
+function initGamepadManager() {
+  loadGamepadConfig();
+
+  window.addEventListener('gamepadconnected', e => {
+    updateGamepadStatusUI();
+  });
+
+  window.addEventListener('gamepaddisconnected', e => {
+    updateGamepadStatusUI();
+  });
+
+  const openBtn = document.getElementById('openGamepadModalBtn');
+  if (openBtn) openBtn.addEventListener('click', openGamepadModal);
+
+  const hudBtn = document.getElementById('btnHudGamepad');
+  if (hudBtn) hudBtn.addEventListener('click', openGamepadModal);
+
+  const closeBtn = document.getElementById('closeGamepadModalBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeGamepadModal);
+
+  const saveBtn = document.getElementById('saveGamepadBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+      saveGamepadConfig();
+      closeGamepadModal();
+    });
+  }
+
+  const resetBtn = document.getElementById('resetGamepadBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      GAMEPAD_CONFIG = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_CONFIG));
+      saveGamepadConfig();
+      renderGamepadModalActions();
+      const group = document.getElementById('gpPlayerAssignToggle');
+      if (group) {
+        group.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.dataset.value) === 1);
+        });
+      }
+      playSound('score');
+    });
+  }
+
+  const assignGroup = document.getElementById('gpPlayerAssignToggle');
+  if (assignGroup) {
+    assignGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        assignGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        GAMEPAD_CONFIG.player = parseInt(btn.dataset.value);
+        saveGamepadConfig();
+        updateGamepadStatusUI();
+      });
+    });
+  }
+
+  updateGamepadStatusUI();
+
+  // Periodic poll to catch newly connected gamepads without event dispatch
+  setInterval(() => {
+    if (gamePhase === 'setup') {
+      updateGamepadStatusUI();
+    }
+  }, 500);
+}
+
 // ── 5. BALL SYSTEM ──────────────────────────────────────────────
 let balls = [];
 
@@ -812,7 +1190,13 @@ function updatePlayerRobot(r, dt) {
     if (KEYS['d']) moveX = 1;
   }
 
-  if (moveX !== 0 && moveY !== 0) {
+  // Gamepad Analog / D-Pad Movement Integration
+  const playerNum = r.isPlayer2 ? 2 : 1;
+  const gpMove = getGamepadMoveVector(playerNum);
+  if (gpMove.magnitude > 0) {
+    moveX = gpMove.x;
+    moveY = gpMove.y;
+  } else if (moveX !== 0 && moveY !== 0) {
     const inv = 1 / Math.sqrt(2);
     moveX *= inv;
     moveY *= inv;
@@ -847,10 +1231,11 @@ function updatePlayerRobot(r, dt) {
   // Push field balls
   pushBallsFromRobot(r);
 
-  // Intake / Pickup Action
+  // Intake / Pickup Action (Keyboard or Gamepad)
   r.pickupCooldown = Math.max(0, r.pickupCooldown - dt);
   const pickupKey = r.isPlayer2 ? 'o' : 'b';
-  if (KEYS[pickupKey] && r.inventory.length < r.specs.capacity && r.pickupCooldown <= 0) {
+  const gpPickup = isGamepadActionActive('pickup', playerNum);
+  if ((KEYS[pickupKey] || gpPickup) && r.inventory.length < r.specs.capacity && r.pickupCooldown <= 0) {
     const nearby = getNearbyBalls(r.x, r.y, PICKUP_RANGE_M);
     if (nearby.length > 0) {
       const idx = nearby[0];
@@ -865,10 +1250,11 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Shoot Action (Space / Ñ)
+  // Shoot Action (Space / Ñ or Gamepad)
   r.shootCooldown = Math.max(0, r.shootCooldown - dt);
   const shootKey = r.isPlayer2 ? 'ñ' : ' ';
-  if (KEYS[shootKey] && r.inventory.length > 0 && r.shootCooldown <= 0) {
+  const gpShoot = isGamepadActionActive('shoot', playerNum);
+  if ((KEYS[shootKey] || gpShoot) && r.inventory.length > 0 && r.shootCooldown <= 0) {
     if (r.isInShootZone()) {
       const ballIdx = r.inventory.shift();
       const target = r.getShootTarget();
@@ -895,13 +1281,14 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Climb Action trigger (V for Player 1, P for Player 2)
+  // Climb Action trigger (V for Player 1, P for Player 2 or Gamepad)
   const climbKey = r.isPlayer2 ? 'p' : 'v';
+  const gpClimb = isGamepadActionActive('climb', playerNum);
   const z1T = inZone1(r);
   let shouldAttach = false;
   let attachT = 0.05;
 
-  if (KEYS[climbKey]) {
+  if (KEYS[climbKey] || gpClimb) {
     if (z1T !== null) {
       shouldAttach = true;
       attachT = Math.max(0.05, z1T);
@@ -943,10 +1330,14 @@ function updateClimbingRobot(r, dt) {
     const climbKey = r.isPlayer2 ? 'p' : 'v';
     const upKey = r.isPlayer2 ? 'arrowup' : 'w';
     const downKey = r.isPlayer2 ? 'arrowdown' : 's';
+    const playerNum = r.isPlayer2 ? 2 : 1;
+    const gpMove = getGamepadMoveVector(playerNum);
+    const gpUp = isGamepadActionActive('climbUp', playerNum);
+    const gpDown = isGamepadActionActive('climbDown', playerNum);
     
     let climbDir = 0;
-    if (KEYS[climbKey] || KEYS[upKey]) climbDir = 1;
-    else if (KEYS[downKey]) climbDir = -1;
+    if (KEYS[climbKey] || KEYS[upKey] || gpUp || gpMove.y < -0.3) climbDir = 1;
+    else if (KEYS[downKey] || gpDown || gpMove.y > 0.3) climbDir = -1;
     
     if (climbDir !== 0) {
       const brace = BRACES[r.alliance];
@@ -2666,6 +3057,9 @@ function initSetupUI() {
   document.getElementById('goCalcBtn').addEventListener('click', () => {
     window.location.href = 'index.html';
   });
+
+  // Initialize Gamepad subsystem
+  initGamepadManager();
 }
 
 // ── 15. INITIALIZATION ───────────────────────────────────────────
