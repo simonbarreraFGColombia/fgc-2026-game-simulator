@@ -122,6 +122,13 @@
               </div>
               <input type="range" class="spec-slider" id="climbSpeed" min="0.1" max="1.5" step="0.1" value="0.5">
             </div>
+            <div class="spec-row">
+              <div class="spec-info">
+                <label>Tiempo de Anclaje de Escalada</label>
+                <span class="spec-unit" id="climbAnchorTimeVal">2.0 s</span>
+              </div>
+              <input type="range" class="spec-slider" id="climbAnchorTime" min="1.0" max="10.0" step="0.5" value="2.0">
+            </div>
           </div>
 
           <!-- Modo de Juego -->
@@ -274,12 +281,23 @@
               <span class="hud-val" id="hudRedInv">0 / 12</span>
             </div>
             <div class="hud-field">
+              <span class="hud-lbl">Linear Motion</span>
+              <span class="hud-val" id="hudRedLinear" style="color: #38bdf8;">📦 Retraído [30%]</span>
+            </div>
+            <div class="hud-field">
+              <span class="hud-lbl">Gancho</span>
+              <span class="hud-val" id="hudRedHook">Libre</span>
+            </div>
+            <div class="hud-field">
               <span class="hud-lbl">Estado</span>
               <span class="hud-val" id="hudRedStatus">Quieto</span>
             </div>
             <div class="controls-kbd">
-              <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover<br>
-              <kbd>B</kbd> Recoger &nbsp; <kbd>SPACE</kbd> Lanzar &nbsp; <kbd>V</kbd> Escalar
+              <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Mover &nbsp; <kbd>B</kbd> Recoger &nbsp; <kbd>SPACE</kbd> Lanzar<br>
+              <kbd>E</kbd> / <kbd>Q</kbd> Linear Ext/Ret &nbsp; <kbd>R</kbd> / <kbd>F</kbd> Gancho Subir/Bajar &nbsp; <kbd>V</kbd> Escalar<br>
+              <div style="margin-top: 4px; color: #38bdf8; font-size: 0.58rem;">
+                🎮 <b>Mando:</b> ✕ Lanzar | ○ Recoger | ◄► Linear | ▲▼ Gancho | R2/L2 Subir
+              </div>
             </div>
           </div>
         </aside>
@@ -343,12 +361,23 @@
               <span class="hud-val" id="hudBlueInv">0 / 12</span>
             </div>
             <div class="hud-field">
+              <span class="hud-lbl">Linear Motion</span>
+              <span class="hud-val" id="hudBlueLinear" style="color: #38bdf8;">📦 Retraído [30%]</span>
+            </div>
+            <div class="hud-field">
+              <span class="hud-lbl">Gancho</span>
+              <span class="hud-val" id="hudBlueHook">Libre</span>
+            </div>
+            <div class="hud-field">
               <span class="hud-lbl">Estado</span>
               <span class="hud-val" id="hudBlueStatus">Quieto</span>
             </div>
             <div class="controls-kbd" id="p2ControlsKbd">
-              <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Mover<br>
-              <kbd>O</kbd> Recoger &nbsp; <kbd>Ñ</kbd> Lanzar &nbsp; <kbd>P</kbd> Escalar
+              <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Mover &nbsp; <kbd>O</kbd> Recoger &nbsp; <kbd>Ñ</kbd> Lanzar<br>
+              <kbd>I</kbd> / <kbd>U</kbd> Linear Ext/Ret &nbsp; <kbd>K</kbd> / <kbd>J</kbd> Gancho Subir/Bajar &nbsp; <kbd>P</kbd> Escalar<br>
+              <div style="margin-top: 4px; color: #38bdf8; font-size: 0.58rem;">
+                🎮 <b>Mando 2:</b> ✕ Lanzar | ○ Recoger | ◄► Linear | ▲▼ Gancho | R2/L2 Subir
+              </div>
             </div>
           </div>
         </aside>
@@ -429,6 +458,16 @@
         </div>
 
         <div class="modal-body">
+          <!-- Driver Tabs Navigation -->
+          <div class="gp-tab-nav">
+            <button type="button" class="gp-tab-btn active" id="gpTabDriver1" data-driver="1">
+              🎮 Driver 1 (Jugador 1)
+            </button>
+            <button type="button" class="gp-tab-btn" id="gpTabDriver2" data-driver="2">
+              🎮 Driver 2 (Jugador 2)
+            </button>
+          </div>
+
           <!-- Device Info Banner -->
           <div class="gp-device-banner" id="gpDeviceBanner">
             <div class="gp-device-icon">🎮</div>
@@ -442,28 +481,36 @@
           <!-- Player Assign Setting -->
           <div class="modal-group">
             <div class="modal-group-title">
-              <span>👤 ASIGNACIÓN DEL MANDO</span>
-              <span class="group-hint">Elige a qué robot controla este mando</span>
+              <span>👤 ASIGNACIÓN DEL DISPOSITIVO FÍSICO</span>
+              <span class="group-hint">Selecciona qué mando USB/Bluetooth corresponde a este Driver</span>
             </div>
-            <div class="toggle-group" id="gpPlayerAssignToggle">
-              <button class="toggle-btn active" data-value="1">👤 Jugador 1 (WASD)</button>
-              <button class="toggle-btn" data-value="2">👥 Jugador 2 (Flechas)</button>
-              <button class="toggle-btn" data-value="0">❌ Desactivado</button>
+            <div class="toggle-group" id="gpDeviceSelectToggle">
+              <button class="toggle-btn active" data-value="0">🎮 Mando USB #1</button>
+              <button class="toggle-btn" data-value="1">🎮 Mando USB #2</button>
+              <button class="toggle-btn" data-value="-1">❌ Desactivado</button>
             </div>
           </div>
 
           <!-- Live Interactive Tester -->
           <div class="modal-group">
             <div class="modal-group-title">
-              <span>🕹️ MONITOR DE ENTRADAS EN VIVO</span>
-              <span class="group-hint">Presiona botones o mueve los sticks para verificar la respuesta</span>
+              <span>🕹️ MONITOR DE ENTRADAS EN VIVO (SPLIT-ARCADE DRIVE)</span>
+              <span class="group-hint">Prueba los dos sticks y botones en tiempo real</span>
             </div>
             <div class="gp-live-tester" id="gpLiveTester">
-              <div class="gp-stick-preview" id="gpStickPreview">
-                <div class="gp-stick-base">
-                  <div class="gp-stick-thumb" id="gpStickThumb"></div>
+              <div class="gp-sticks-row">
+                <div class="gp-stick-preview">
+                  <div class="gp-stick-base">
+                    <div class="gp-stick-thumb" id="gpStickThumbL"></div>
+                  </div>
+                  <span class="gp-stick-label">Stick Izq (Avance / Atrás)</span>
                 </div>
-                <span class="gp-stick-label">Stick Izq (Movimiento)</span>
+                <div class="gp-stick-preview">
+                  <div class="gp-stick-base">
+                    <div class="gp-stick-thumb" id="gpStickThumbR"></div>
+                  </div>
+                  <span class="gp-stick-label">Stick Der (Giro Izq / Der)</span>
+                </div>
               </div>
               <div class="gp-buttons-grid" id="gpButtonsGrid">
                 <!-- Dynamically updated badge buttons -->
@@ -474,11 +521,11 @@
           <!-- Actions Mapping Table -->
           <div class="modal-group">
             <div class="modal-group-title">
-              <span>⚙️ CONFIGURACIÓN DE ACCIONES</span>
-              <span class="group-hint">Haz clic en 'Reasignar' y luego presiona el botón deseado en tu mando</span>
+              <span>⚙️ MAPEO DE ACCIONES Y MECANISMOS</span>
+              <span class="group-hint">Haz clic en 'Reasignar' y luego presiona el botón deseado en el mando</span>
             </div>
             <div class="gp-actions-list" id="gpActionsList">
-              <!-- Dynamically populated rows for pickup, shoot, climb, etc. -->
+              <!-- Dynamically populated rows for shooter, pickup, linear, climber, etc. -->
             </div>
           </div>
         </div>

@@ -396,6 +396,7 @@ const CONFIG = {
     capacity: 12,
     accuracy: 80,
     climbSpeed: 0.5,
+    climbAnchorTime: 2.0,
   },
   gameMode: 1, // 1 = Solo, 2 = 2 Players Coop
   coopRelation: 'teammates', // 'teammates' | 'rivals'
@@ -441,7 +442,7 @@ window.addEventListener('keyup', e => {
   KEYS[e.key.toLowerCase()] = false;
 });
 
-// ── 4.5 GAMEPAD & PLAYSTATION CONTROLLER SYSTEM ─────────────────
+// ── 4.5 GAMEPAD & PLAYSTATION CONTROLLER SYSTEM (DUAL DRIVER) ─────
 const PS_BUTTONS = {
   0: { label: '✕ Cruz (Cross)', short: '✕', css: 'ps-cross' },
   1: { label: '○ Círculo (Circle)', short: '○', css: 'ps-circle' },
@@ -463,70 +464,105 @@ const PS_BUTTONS = {
   17: { label: 'Touchpad', short: 'Touchpad', css: 'ps-sys' }
 };
 
-const DEFAULT_GAMEPAD_CONFIG = {
-  player: 1, // 1: P1, 2: P2, 0: Disabled
-  deadzone: 0.18,
-  mappings: {
-    pickup: 7,     // R2 (Gatillo Der)
-    shoot: 5,      // R1 (Bumper Der)
-    climb: 3,      // △ (Triángulo)
-    climbUp: 12,   // D-Pad Arriba
-    climbDown: 13, // D-Pad Abajo
+const DEFAULT_GAMEPADS_CONFIG = {
+  1: {
+    deviceIndex: 0,
+    deadzone: 0.18,
+    mappings: {
+      shoot: 0,         // ✕ Cruz (Disparo único)
+      pickup: 1,        // ○ Círculo (Recolección)
+      linearDeploy: 15, // ► D-Pad Der (Desplegar Linear Motion 100%)
+      linearRetract: 14,// ◄ D-Pad Izq (Retraer Linear Motion 30%)
+      hookRaise: 12,    // ▲ D-Pad Arriba (Subir Gancho de Escalada)
+      hookLower: 13,    // ▼ D-Pad Abajo (Bajar / Anclar Gancho en Brace)
+      climbAdvance: 7,  // R2 Gatillo Der (Avance en Rampa)
+      climbReverse: 6,  // L2 Gatillo Izq (Retroceso en Rampa)
+    }
+  },
+  2: {
+    deviceIndex: 1,
+    deadzone: 0.18,
+    mappings: {
+      shoot: 0,         // ✕ Cruz (Disparo único)
+      pickup: 1,        // ○ Círculo (Recolección)
+      linearDeploy: 15, // ► D-Pad Der (Desplegar Linear Motion 100%)
+      linearRetract: 14,// ◄ D-Pad Izq (Retraer Linear Motion 30%)
+      hookRaise: 12,    // ▲ D-Pad Arriba (Subir Gancho de Escalada)
+      hookLower: 13,    // ▼ D-Pad Abajo (Bajar / Anclar Gancho en Brace)
+      climbAdvance: 7,  // R2 Gatillo Der (Avance en Rampa)
+      climbReverse: 6,  // L2 Gatillo Izq (Retroceso en Rampa)
+    }
   }
 };
 
 const GAMEPAD_ACTIONS = [
-  { id: 'pickup', name: 'Recoger Pelotas (Intake)', desc: 'Recoge pelotas cercanas en el suelo del campo', defaultBtn: 7 },
-  { id: 'shoot', name: 'Disparar / Lanzar (Shoot)', desc: 'Dispara a la Suppression Unit o al Humano', defaultBtn: 5 },
-  { id: 'climb', name: 'Enganchar Rampa (Climb)', desc: 'Se acopla a la rampa de escalada', defaultBtn: 3 },
-  { id: 'climbUp', name: 'Subir en Rampa', desc: 'Avanza hacia arriba en la rampa', defaultBtn: 12 },
-  { id: 'climbDown', name: 'Bajar en Rampa', desc: 'Desciende en la rampa', defaultBtn: 13 },
+  { id: 'shoot', name: 'Disparar / Lanzar (Shooter)', desc: 'Dispara pelotas hacia Suppression Unit o Fire Shield', defaultBtn: 0 },
+  { id: 'pickup', name: 'Recoger Pelotas (Intake)', desc: 'Recoge pelotas cercanas en el suelo del campo', defaultBtn: 1 },
+  { id: 'linearDeploy', name: 'Linear Motion: Desplegar (100%)', desc: 'Expande la cámara trasera desbloqueando el 100% de almacenamiento', defaultBtn: 15 },
+  { id: 'linearRetract', name: 'Linear Motion: Retraer (30%)', desc: 'Repliega la cámara trasera (bloqueado si hay >30% de capacidad ocupada)', defaultBtn: 14 },
+  { id: 'hookRaise', name: 'Gancho Climber: Subir Gancho', desc: 'Despliega el gancho verticalmente hacia arriba para encarar el brace', defaultBtn: 12 },
+  { id: 'hookLower', name: 'Gancho Climber: Bajar / Anclar', desc: 'Baja el gancho haciendo fricción para anclarse firmemente al brace', defaultBtn: 13 },
+  { id: 'climbAdvance', name: 'Climber: Avance en Rampa (Subir)', desc: 'Sube por la rampa diagonal hacia las zonas altas', defaultBtn: 7 },
+  { id: 'climbReverse', name: 'Climber: Retroceso en Rampa (Bajar)', desc: 'Baja por la rampa diagonal hacia la base', defaultBtn: 6 },
 ];
 
-let GAMEPAD_CONFIG = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_CONFIG));
-let connectedGamepadIndex = null;
+let GAMEPADS_CONFIG = JSON.parse(JSON.stringify(DEFAULT_GAMEPADS_CONFIG));
+let activeModalDriverTab = 1; // 1: Driver 1, 2: Driver 2
 let listeningRebindAction = null;
 
 function loadGamepadConfig() {
   try {
-    const saved = localStorage.getItem('fgc_2026_gamepad_config');
+    const saved = localStorage.getItem('fgc_2026_gamepads_config');
     if (saved) {
       const parsed = JSON.parse(saved);
-      GAMEPAD_CONFIG = Object.assign({}, DEFAULT_GAMEPAD_CONFIG, parsed);
-      GAMEPAD_CONFIG.mappings = Object.assign({}, DEFAULT_GAMEPAD_CONFIG.mappings, parsed.mappings);
+      if (parsed[1]) {
+        GAMEPADS_CONFIG[1] = Object.assign({}, DEFAULT_GAMEPADS_CONFIG[1], parsed[1]);
+        GAMEPADS_CONFIG[1].mappings = Object.assign({}, DEFAULT_GAMEPADS_CONFIG[1].mappings, parsed[1].mappings);
+      }
+      if (parsed[2]) {
+        GAMEPADS_CONFIG[2] = Object.assign({}, DEFAULT_GAMEPADS_CONFIG[2], parsed[2]);
+        GAMEPADS_CONFIG[2].mappings = Object.assign({}, DEFAULT_GAMEPADS_CONFIG[2].mappings, parsed[2].mappings);
+      }
     }
   } catch (e) {
-    console.warn('Error loading gamepad config:', e);
+    console.warn('Error loading gamepads config:', e);
   }
 }
 
 function saveGamepadConfig() {
   try {
-    localStorage.setItem('fgc_2026_gamepad_config', JSON.stringify(GAMEPAD_CONFIG));
+    localStorage.setItem('fgc_2026_gamepads_config', JSON.stringify(GAMEPADS_CONFIG));
   } catch (e) {
-    console.warn('Error saving gamepad config:', e);
+    console.warn('Error saving gamepads config:', e);
   }
 }
 
-function getActiveGamepad(playerNum = null) {
+function getConnectedGamepadsList() {
   const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-  if (!gamepads) return null;
-  
-  if (playerNum !== null) {
-    if (GAMEPAD_CONFIG.player === 0 || GAMEPAD_CONFIG.player !== playerNum) {
-      return null;
+  const list = [];
+  if (gamepads) {
+    for (let i = 0; i < gamepads.length; i++) {
+      if (gamepads[i] && gamepads[i].connected) {
+        list.push(gamepads[i]);
+      }
     }
-  } else if (GAMEPAD_CONFIG.player === 0) {
-    return null;
   }
+  return list;
+}
 
-  for (let i = 0; i < gamepads.length; i++) {
-    const gp = gamepads[i];
-    if (gp && gp.connected) {
-      connectedGamepadIndex = i;
-      return gp;
-    }
+function getActiveGamepad(driverNum = 1) {
+  const connected = getConnectedGamepadsList();
+  if (connected.length === 0) return null;
+
+  const cfg = GAMEPADS_CONFIG[driverNum];
+  if (!cfg || cfg.deviceIndex === -1) return null;
+
+  // Exact index assignment or smart fallback
+  if (cfg.deviceIndex >= 0 && cfg.deviceIndex < connected.length) {
+    return connected[cfg.deviceIndex];
   }
+  if (driverNum === 1 && connected.length > 0) return connected[0];
+  if (driverNum === 2 && connected.length > 1) return connected[1];
   return null;
 }
 
@@ -537,47 +573,79 @@ function isGamepadButtonPressed(gp, btnIndex) {
   return typeof btn === 'object' ? (btn.pressed || btn.value > 0.35) : btn > 0.35;
 }
 
-function isGamepadActionActive(actionId, playerNum) {
-  const gp = getActiveGamepad(playerNum);
+function isGamepadActionActive(actionId, driverNum = 1) {
+  const gp = getActiveGamepad(driverNum);
   if (!gp) return false;
-  const btnIndex = GAMEPAD_CONFIG.mappings[actionId];
+  const cfg = GAMEPADS_CONFIG[driverNum];
+  if (!cfg || !cfg.mappings) return false;
+  const btnIndex = cfg.mappings[actionId];
   return isGamepadButtonPressed(gp, btnIndex);
 }
 
-function getGamepadMoveVector(playerNum) {
-  const gp = getActiveGamepad(playerNum);
-  if (!gp) return { x: 0, y: 0, magnitude: 0 };
+function getGamepadArcadeInputs(driverNum = 1) {
+  const gp = getActiveGamepad(driverNum);
+  const result = {
+    throttle: 0,
+    steering: 0,
+    leftStick: { x: 0, y: 0, mag: 0 },
+    rightStick: { x: 0, y: 0, mag: 0 }
+  };
+  if (!gp) return result;
 
-  let x = 0, y = 0;
+  const cfg = GAMEPADS_CONFIG[driverNum] || DEFAULT_GAMEPADS_CONFIG[1];
+  const deadzone = cfg.deadzone || 0.18;
 
-  // 1. Analog Stick (Axes 0 and 1)
+  // 1. Left Stick (Axes 0 = LX, Axes 1 = LY)
   if (gp.axes && gp.axes.length >= 2) {
-    const ax = gp.axes[0];
-    const ay = gp.axes[1];
-    const rawMag = Math.hypot(ax, ay);
-    if (rawMag > GAMEPAD_CONFIG.deadzone) {
-      const normalizedMag = Math.min(1.0, (rawMag - GAMEPAD_CONFIG.deadzone) / (1.0 - GAMEPAD_CONFIG.deadzone));
-      x = (ax / rawMag) * normalizedMag;
-      y = (ay / rawMag) * normalizedMag;
+    const lx = gp.axes[0];
+    const ly = gp.axes[1];
+    const lmag = Math.hypot(lx, ly);
+    if (lmag > deadzone) {
+      const norm = Math.min(1.0, (lmag - deadzone) / (1.0 - deadzone));
+      result.leftStick.x = (lx / lmag) * norm;
+      result.leftStick.y = (ly / lmag) * norm;
+      result.leftStick.mag = norm;
     }
   }
 
-  // 2. D-Pad Support (Buttons 12: Up, 13: Down, 14: Left, 15: Right)
-  if (isGamepadButtonPressed(gp, 12)) y = -1;
-  if (isGamepadButtonPressed(gp, 13)) y = 1;
-  if (isGamepadButtonPressed(gp, 14)) x = -1;
-  if (isGamepadButtonPressed(gp, 15)) x = 1;
-
-  const mag = Math.hypot(x, y);
-  if (mag > 1.0) {
-    x /= mag;
-    y /= mag;
+  // 2. Right Stick (Axes 2 = RX, Axes 3 = RY on standard controllers)
+  if (gp.axes && gp.axes.length >= 4) {
+    const rx = gp.axes[2];
+    const ry = gp.axes[3];
+    const rmag = Math.hypot(rx, ry);
+    if (rmag > deadzone) {
+      const norm = Math.min(1.0, (rmag - deadzone) / (1.0 - deadzone));
+      result.rightStick.x = (rx / rmag) * norm;
+      result.rightStick.y = (ry / rmag) * norm;
+      result.rightStick.mag = norm;
+    }
+  } else if (gp.axes && gp.axes.length >= 3) {
+    const rx = gp.axes[2];
+    if (Math.abs(rx) > deadzone) {
+      result.rightStick.x = Math.sign(rx) * Math.min(1.0, (Math.abs(rx) - deadzone) / (1.0 - deadzone));
+      result.rightStick.mag = Math.abs(result.rightStick.x);
+    }
   }
-  return { x: x, y: y, magnitude: Math.hypot(x, y) };
+
+  // Split-Arcade interpretation:
+  // Throttle = -LeftStick.Y (up is negative Y in Gamepad API)
+  result.throttle = -result.leftStick.y;
+
+  // Steering = RightStick.X (or fallback to LeftStick.X if RightStick is idle)
+  if (Math.abs(result.rightStick.x) > 0.05) {
+    result.steering = result.rightStick.x;
+  } else if (Math.abs(result.leftStick.x) > 0.1) {
+    result.steering = result.leftStick.x;
+  }
+
+  return result;
 }
 
 function updateGamepadStatusUI() {
-  const gp = getActiveGamepad();
+  const connected = getConnectedGamepadsList();
+  const gp1 = getActiveGamepad(1);
+  const gp2 = getActiveGamepad(2);
+  
   const badge = document.getElementById('gamepadStatusBadge');
   const text = document.getElementById('gamepadStatusText');
   const subtext = document.getElementById('gamepadSubtext');
@@ -587,40 +655,45 @@ function updateGamepadStatusUI() {
   const modalStatus = document.getElementById('modalGpDeviceStatus');
   const modalPill = document.getElementById('modalGpPill');
 
-  if (gp) {
-    const name = gp.id.length > 32 ? gp.id.slice(0, 32) + '…' : gp.id;
-    if (badge) {
+  // Setup screen Gamepad badge
+  if (badge && text && subtext) {
+    if (connected.length > 0) {
       badge.classList.remove('disconnected');
       badge.classList.add('connected');
-    }
-    if (text) text.textContent = `Mando: ${name}`;
-    if (subtext) subtext.textContent = `Asignado a: Jugador ${GAMEPAD_CONFIG.player === 1 ? '1 (WASD)' : GAMEPAD_CONFIG.player === 2 ? '2 (Flechas)' : 'Desactivado'}`;
-    if (hudBtn) {
-      hudBtn.classList.add('connected');
-      hudBtn.title = `Mando Conectado: ${name}`;
-    }
-
-    if (modalName) modalName.textContent = gp.id;
-    if (modalStatus) modalStatus.textContent = `Mando USB/Bluetooth listo (${gp.buttons.length} botones, ${gp.axes.length} ejes analógicos)`;
-    if (modalPill) {
-      modalPill.className = 'gp-device-pill connected';
-      modalPill.textContent = 'Conectado';
-    }
-  } else {
-    if (badge) {
+      if (connected.length === 1) {
+        text.textContent = `1 Mando Conectado: ${connected[0].id.slice(0, 24)}…`;
+        subtext.textContent = `Driver 1 Activo (${gp1 ? 'Asignado' : 'Sin asignar'})`;
+      } else {
+        text.textContent = `2 Mandos Conectados (Modo Dual)`;
+        subtext.textContent = `Driver 1: Mando #1 | Driver 2: Mando #2`;
+      }
+      if (hudBtn) {
+        hudBtn.classList.add('connected');
+        hudBtn.title = `${connected.length} Mando(s) Conectado(s)`;
+      }
+    } else {
       badge.classList.remove('connected');
       badge.classList.add('disconnected');
+      text.textContent = 'Sin Mando Conectado';
+      subtext.textContent = 'Conecta tu mando PlayStation por USB o Bluetooth y presiona cualquier botón';
+      if (hudBtn) {
+        hudBtn.classList.remove('connected');
+        hudBtn.title = 'Configurar Mando (Desconectado)';
+      }
     }
-    if (text) text.textContent = 'Sin Mando Conectado';
-    if (subtext) subtext.textContent = 'Conecta tu mando PlayStation por USB y presiona cualquier botón';
-    if (hudBtn) {
-      hudBtn.classList.remove('connected');
-      hudBtn.title = 'Configurar Mando (Desconectado)';
-    }
+  }
 
-    if (modalName) modalName.textContent = 'Buscando mando...';
-    if (modalStatus) modalStatus.textContent = 'Conecta tu mando por USB o Bluetooth y pulsa cualquier botón para activarlo.';
-    if (modalPill) {
+  // Inside mapping modal for current active tab
+  if (modalName && modalStatus && modalPill) {
+    const currentGp = getActiveGamepad(activeModalDriverTab);
+    if (currentGp) {
+      modalName.textContent = `Driver ${activeModalDriverTab}: ${currentGp.id}`;
+      modalStatus.textContent = `Mando USB/Bluetooth listo (${currentGp.buttons.length} botones, ${currentGp.axes.length} ejes analógicos)`;
+      modalPill.className = 'gp-device-pill connected';
+      modalPill.textContent = 'Conectado';
+    } else {
+      modalName.textContent = `Driver ${activeModalDriverTab}: Sin mando asignado`;
+      modalStatus.textContent = 'Conecta tu mando por USB o Bluetooth y pulsa cualquier botón para activarlo.';
       modalPill.className = 'gp-device-pill disconnected';
       modalPill.textContent = 'Desconectado';
     }
@@ -631,9 +704,11 @@ function renderGamepadModalActions() {
   const list = document.getElementById('gpActionsList');
   if (!list) return;
 
+  const cfg = GAMEPADS_CONFIG[activeModalDriverTab] || DEFAULT_GAMEPADS_CONFIG[activeModalDriverTab];
+
   list.innerHTML = '';
   GAMEPAD_ACTIONS.forEach(act => {
-    const currentBtn = GAMEPAD_CONFIG.mappings[act.id] !== undefined ? GAMEPAD_CONFIG.mappings[act.id] : act.defaultBtn;
+    const currentBtn = (cfg.mappings && cfg.mappings[act.id] !== undefined) ? cfg.mappings[act.id] : act.defaultBtn;
     const btnMeta = PS_BUTTONS[currentBtn] || { label: `Botón ${currentBtn}`, short: `B${currentBtn}`, css: 'ps-sys' };
 
     const row = document.createElement('div');
@@ -689,20 +764,35 @@ function updateGamepadTesterLoop() {
   const modal = document.getElementById('gamepadModal');
   if (!modal || modal.style.display === 'none') return;
 
-  const gp = getActiveGamepad();
+  const gp = getActiveGamepad(activeModalDriverTab);
   updateGamepadStatusUI();
 
   if (gp) {
-    // 1. Update Stick thumb position
-    const thumb = document.getElementById('gpStickThumb');
-    if (thumb && gp.axes && gp.axes.length >= 2) {
+    const inputs = getGamepadArcadeInputs(activeModalDriverTab);
+
+    // 1. Update Left Stick thumb (Avance / Atrás)
+    const thumbL = document.getElementById('gpStickThumbL');
+    if (thumbL && gp.axes && gp.axes.length >= 2) {
       const ax = gp.axes[0];
       const ay = gp.axes[1];
-      const maxOffset = 18;
-      thumb.style.transform = `translate(${ax * maxOffset}px, ${ay * maxOffset}px)`;
+      const maxOffset = 16;
+      thumbL.style.transform = `translate(${ax * maxOffset}px, ${ay * maxOffset}px)`;
     }
 
-    // 2. Update button badges in tester
+    // 2. Update Right Stick thumb (Giro Izq / Der)
+    const thumbR = document.getElementById('gpStickThumbR');
+    if (thumbR && gp.axes && gp.axes.length >= 4) {
+      const ax = gp.axes[2];
+      const ay = gp.axes[3];
+      const maxOffset = 16;
+      thumbR.style.transform = `translate(${ax * maxOffset}px, ${ay * maxOffset}px)`;
+    } else if (thumbR && gp.axes && gp.axes.length >= 3) {
+      const ax = gp.axes[2];
+      const maxOffset = 16;
+      thumbR.style.transform = `translate(${ax * maxOffset}px, 0px)`;
+    }
+
+    // 3. Update button badges in tester
     if (gp.buttons) {
       for (let i = 0; i < gp.buttons.length; i++) {
         const testEl = document.getElementById(`gp_test_btn_${i}`);
@@ -712,9 +802,9 @@ function updateGamepadTesterLoop() {
           else testEl.classList.remove('active');
         }
 
-        // 3. If currently in listening mode for rebind, capture first pressed button!
+        // 4. If currently in listening mode for rebind, capture first pressed button!
         if (listeningRebindAction && pressed) {
-          GAMEPAD_CONFIG.mappings[listeningRebindAction] = i;
+          GAMEPADS_CONFIG[activeModalDriverTab].mappings[listeningRebindAction] = i;
           playSound('pickup');
           listeningRebindAction = null;
           renderGamepadModalActions();
@@ -732,10 +822,16 @@ function openGamepadModal() {
   if (!modal) return;
   modal.style.display = 'flex';
   
-  const group = document.getElementById('gpPlayerAssignToggle');
-  if (group) {
-    group.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', parseInt(btn.dataset.value) === GAMEPAD_CONFIG.player);
+  // Set tab buttons
+  document.querySelectorAll('.gp-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.driver) === activeModalDriverTab);
+  });
+
+  const deviceGroup = document.getElementById('gpDeviceSelectToggle');
+  if (deviceGroup) {
+    const currentDeviceIndex = GAMEPADS_CONFIG[activeModalDriverTab].deviceIndex;
+    deviceGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.value) === currentDeviceIndex);
     });
   }
 
@@ -763,6 +859,45 @@ function initGamepadManager() {
     updateGamepadStatusUI();
   });
 
+  // Tab switching Driver 1 / Driver 2
+  const tabD1 = document.getElementById('gpTabDriver1');
+  const tabD2 = document.getElementById('gpTabDriver2');
+
+  const switchDriverTab = (driverNum) => {
+    activeModalDriverTab = driverNum;
+    if (tabD1) tabD1.classList.toggle('active', driverNum === 1);
+    if (tabD2) tabD2.classList.toggle('active', driverNum === 2);
+
+    const deviceGroup = document.getElementById('gpDeviceSelectToggle');
+    if (deviceGroup) {
+      const currentDeviceIndex = GAMEPADS_CONFIG[driverNum].deviceIndex;
+      deviceGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.value) === currentDeviceIndex);
+      });
+    }
+
+    listeningRebindAction = null;
+    renderGamepadModalActions();
+    updateGamepadStatusUI();
+  };
+
+  if (tabD1) tabD1.addEventListener('click', () => switchDriverTab(1));
+  if (tabD2) tabD2.addEventListener('click', () => switchDriverTab(2));
+
+  // Device assignment toggle
+  const deviceGroup = document.getElementById('gpDeviceSelectToggle');
+  if (deviceGroup) {
+    deviceGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        deviceGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        GAMEPADS_CONFIG[activeModalDriverTab].deviceIndex = parseInt(btn.dataset.value);
+        saveGamepadConfig();
+        updateGamepadStatusUI();
+      });
+    });
+  }
+
   const openBtn = document.getElementById('openGamepadModalBtn');
   if (openBtn) openBtn.addEventListener('click', openGamepadModal);
 
@@ -783,29 +918,16 @@ function initGamepadManager() {
   const resetBtn = document.getElementById('resetGamepadBtn');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      GAMEPAD_CONFIG = JSON.parse(JSON.stringify(DEFAULT_GAMEPAD_CONFIG));
+      GAMEPADS_CONFIG[activeModalDriverTab] = JSON.parse(JSON.stringify(DEFAULT_GAMEPADS_CONFIG[activeModalDriverTab]));
       saveGamepadConfig();
       renderGamepadModalActions();
-      const group = document.getElementById('gpPlayerAssignToggle');
-      if (group) {
-        group.querySelectorAll('.toggle-btn').forEach(btn => {
-          btn.classList.toggle('active', parseInt(btn.dataset.value) === 1);
+      const devGroup = document.getElementById('gpDeviceSelectToggle');
+      if (devGroup) {
+        devGroup.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.dataset.value) === GAMEPADS_CONFIG[activeModalDriverTab].deviceIndex);
         });
       }
       playSound('score');
-    });
-  }
-
-  const assignGroup = document.getElementById('gpPlayerAssignToggle');
-  if (assignGroup) {
-    assignGroup.querySelectorAll('.toggle-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        assignGroup.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        GAMEPAD_CONFIG.player = parseInt(btn.dataset.value);
-        saveGamepadConfig();
-        updateGamepadStatusUI();
-      });
     });
   }
 
@@ -998,7 +1120,7 @@ class Robot {
     this.vx = 0;
     this.vy = 0;
     this.inventory = [];
-    this.specs = { moveSpeed: 1.5, pickupSpeed: 2, shotSpeed: 3, capacity: 12, accuracy: 80, climbSpeed: 0.5 };
+    this.specs = { moveSpeed: 1.5, pickupSpeed: 2, shotSpeed: 3, capacity: 12, accuracy: 80, climbSpeed: 0.5, climbAnchorTime: 2.0 };
     this.state = 'idle'; // 'idle' | 'moving' | 'picking' | 'shooting' | 'climbing'
     this.pickupCooldown = 0;
     this.shootCooldown = 0;
@@ -1008,10 +1130,24 @@ class Robot {
     this.prevX = 0;
     this.prevY = 0;
 
-    // Escalada (Brace climb) variables
-    this.climbT = 0.0; // 0.0 to 1.0 along diagonal
+    // Linear Motion (Cámara de almacenamiento desplegable / retraíble)
+    this.linearMotionExtended = false; // Retraído por defecto (30% capacidad)
+    this.linearMotionProgress = 0.0;   // 0.0 = retraído, 1.0 = desplegado
+    this.retractBlockedTimer = 0.0;   // Temporizador para alerta visual de bloqueo
+
+    // Escalada (Gancho de fricción y brace climb)
+    this.climberHookState = 'idle';    // 'idle' | 'raised' | 'anchoring' | 'anchored'
+    this.climberAnchorTimer = 0.0;
+    this.climbT = 0.0; // 0.0 to 1.0 along diagonal brace
     this.isBuddy = false;
     this.buddyOf = null;
+  }
+
+  getEffectiveCapacity() {
+    if (this.linearMotionExtended) {
+      return this.specs.capacity;
+    }
+    return Math.max(1, Math.floor(this.specs.capacity * 0.3));
   }
 
   getShootTarget() {
@@ -1098,8 +1234,12 @@ function initRobots() {
         shotSpeed: CONFIG.specs.shotSpeed * CONFIG.allyMultiplier,
         capacity: Math.max(3, Math.round(CONFIG.specs.capacity * CONFIG.allyMultiplier)),
         accuracy: Math.round(CONFIG.specs.accuracy * CONFIG.allyMultiplier),
-        climbSpeed: CONFIG.specs.climbSpeed * CONFIG.allyMultiplier
+        climbSpeed: CONFIG.specs.climbSpeed * CONFIG.allyMultiplier,
+        climbAnchorTime: CONFIG.specs.climbAnchorTime || 2.0,
       };
+      // Bots start with linear motion extended to use full capacity
+      r.linearMotionExtended = true;
+      r.linearMotionProgress = 1.0;
     }
     robots.push(r);
   }
@@ -1131,8 +1271,11 @@ function initRobots() {
         shotSpeed: CONFIG.specs.shotSpeed * CONFIG.rivalMultiplier,
         capacity: Math.max(3, Math.round(CONFIG.specs.capacity * CONFIG.rivalMultiplier)),
         accuracy: Math.round(CONFIG.specs.accuracy * CONFIG.rivalMultiplier),
-        climbSpeed: CONFIG.specs.climbSpeed * CONFIG.rivalMultiplier
+        climbSpeed: CONFIG.specs.climbSpeed * CONFIG.rivalMultiplier,
+        climbAnchorTime: CONFIG.specs.climbAnchorTime || 2.0,
       };
+      r.linearMotionExtended = true;
+      r.linearMotionProgress = 1.0;
     }
     robots.push(r);
   }
@@ -1170,72 +1313,113 @@ function inZone1(robot) {
   return res.dist < 0.45 ? res.t * 0.33 : null;
 }
 
-// ── 7. PLAYER INPUT ──────────────────────────────────────────────
+// ── 7. PLAYER INPUT & MECHANISMS UPDATER ─────────────────────────
 function updatePlayerRobot(r, dt) {
   if (!r || gamePhase !== 'playing') return;
 
-  // 🏃 Normal Driving
-  const sp = r.specs.moveSpeed;
-  let moveX = 0, moveY = 0;
-
-  if (r.isPlayer2) {
-    if (KEYS['arrowup']) moveY = -1;
-    if (KEYS['arrowdown']) moveY = 1;
-    if (KEYS['arrowleft']) moveX = -1;
-    if (KEYS['arrowright']) moveX = 1;
-  } else {
-    if (KEYS['w']) moveY = -1;
-    if (KEYS['s']) moveY = 1;
-    if (KEYS['a']) moveX = -1;
-    if (KEYS['d']) moveX = 1;
-  }
-
-  // Gamepad Analog / D-Pad Movement Integration
   const playerNum = r.isPlayer2 ? 2 : 1;
-  const gpMove = getGamepadMoveVector(playerNum);
-  if (gpMove.magnitude > 0) {
-    moveX = gpMove.x;
-    moveY = gpMove.y;
-  } else if (moveX !== 0 && moveY !== 0) {
-    const inv = 1 / Math.sqrt(2);
-    moveX *= inv;
-    moveY *= inv;
+  const sp = r.specs.moveSpeed;
+  const gpInputs = getGamepadArcadeInputs(playerNum);
+
+  // ── 1. LINEAR MOTION (Cremallera de Almacenamiento Retráctil) ──
+  const deployKey = r.isPlayer2 ? 'i' : 'e';
+  const retractKey = r.isPlayer2 ? 'u' : 'q';
+  const gpDeploy = isGamepadActionActive('linearDeploy', playerNum);
+  const gpRetract = isGamepadActionActive('linearRetract', playerNum);
+
+  if (KEYS[deployKey] || gpDeploy) {
+    if (!r.linearMotionExtended) {
+      r.linearMotionExtended = true;
+      playSound('pickup');
+    }
   }
 
-  r.prevX = r.x;
-  r.prevY = r.y;
-
-  if (moveX !== 0 || moveY !== 0) {
-    r.x += moveX * sp * dt;
-    r.y += moveY * sp * dt;
-    r.angle = Math.atan2(moveY, moveX);
-    r.state = 'moving';
-  } else {
-    r.state = 'idle';
+  if (KEYS[retractKey] || gpRetract) {
+    if (r.linearMotionExtended) {
+      const allowedRetracted = Math.max(1, Math.floor(r.specs.capacity * 0.3));
+      if (r.inventory.length > allowedRetracted) {
+        // Bloquear repliegue si hay bolas sobrantes
+        r.retractBlockedTimer = 1.8;
+        playSound('climb'); // Sonido de advertencia/buzz
+      } else {
+        r.linearMotionExtended = false;
+        playSound('pickup');
+      }
+    }
   }
 
-  // Clamp inside field
-  const half = ROBOT_SIZE_M / 2;
-  r.x = Math.max(half, Math.min(FIELD_M - half, r.x));
-  r.y = Math.max(half, Math.min(FIELD_M - half, r.y));
+  // Animar transición visual de la cremallera
+  const targetLinearProg = r.linearMotionExtended ? 1.0 : 0.0;
+  r.linearMotionProgress += (targetLinearProg - r.linearMotionProgress) * Math.min(1.0, dt * 8.0);
+  if (r.retractBlockedTimer > 0) {
+    r.retractBlockedTimer -= dt;
+  }
 
-  resolveObstacleCollision(r, half);
+  // ── 2. DRIVETRAIN (Split-Arcade Drive + Keyboard) ─────────────
+  if (r.state !== 'climbing') {
+    let steer = gpInputs.steering;
+    let throttle = gpInputs.throttle;
 
-  // Track mileage
-  const dx = r.x - r.prevX;
-  const dy = r.y - r.prevY;
-  const distTravelled = Math.sqrt(dx * dx + dy * dy);
-  if (r.isPlayer1) PLAYER_STATS.distance += distTravelled;
-  else if (r.isPlayer2) PLAYER2_STATS.distance += distTravelled;
+    // Controles de teclado
+    if (r.isPlayer2) {
+      if (KEYS['arrowleft']) steer = -1;
+      if (KEYS['arrowright']) steer = 1;
+      if (KEYS['arrowup']) throttle = 1;
+      if (KEYS['arrowdown']) throttle = -1;
+    } else {
+      if (KEYS['a']) steer = -1;
+      if (KEYS['d']) steer = 1;
+      if (KEYS['w']) throttle = 1;
+      if (KEYS['s']) throttle = -1;
+    }
 
-  // Push field balls
-  pushBallsFromRobot(r);
+    r.prevX = r.x;
+    r.prevY = r.y;
 
-  // Intake / Pickup Action (Keyboard or Gamepad)
+    // Giro angular (Arcade)
+    if (Math.abs(steer) > 0.01) {
+      const turnRate = 4.2; // rad/s
+      r.angle += steer * turnRate * dt;
+    }
+
+    // Avance / Retroceso en la dirección del chasis
+    if (Math.abs(throttle) > 0.01) {
+      const vx = Math.cos(r.angle) * throttle * sp;
+      const vy = Math.sin(r.angle) * throttle * sp;
+      r.x += vx * dt;
+      r.y += vy * dt;
+      r.state = 'moving';
+    } else if (Math.abs(steer) > 0.01) {
+      r.state = 'moving';
+    } else {
+      r.state = 'idle';
+    }
+
+    // Limitar dentro del campo
+    const half = ROBOT_SIZE_M / 2;
+    r.x = Math.max(half, Math.min(FIELD_M - half, r.x));
+    r.y = Math.max(half, Math.min(FIELD_M - half, r.y));
+
+    resolveObstacleCollision(r, half);
+
+    // Seguimiento de distancia recorrida
+    const dx = r.x - r.prevX;
+    const dy = r.y - r.prevY;
+    const distTravelled = Math.sqrt(dx * dx + dy * dy);
+    if (r.isPlayer1) PLAYER_STATS.distance += distTravelled;
+    else if (r.isPlayer2) PLAYER2_STATS.distance += distTravelled;
+
+    // Empujar pelotas del suelo
+    pushBallsFromRobot(r);
+  }
+
+  // ── 3. INTAKE (Recolección: ○ Círculo / Tecla B/O) ────────────
   r.pickupCooldown = Math.max(0, r.pickupCooldown - dt);
   const pickupKey = r.isPlayer2 ? 'o' : 'b';
   const gpPickup = isGamepadActionActive('pickup', playerNum);
-  if ((KEYS[pickupKey] || gpPickup) && r.inventory.length < r.specs.capacity && r.pickupCooldown <= 0) {
+  const maxCap = r.getEffectiveCapacity();
+
+  if ((KEYS[pickupKey] || gpPickup) && r.inventory.length < maxCap && r.pickupCooldown <= 0) {
     const nearby = getNearbyBalls(r.x, r.y, PICKUP_RANGE_M);
     if (nearby.length > 0) {
       const idx = nearby[0];
@@ -1250,10 +1434,11 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Shoot Action (Space / Ñ or Gamepad)
+  // ── 4. SHOOTER (Disparo Único: ✕ Cruz / Space / Ñ) ────────────
   r.shootCooldown = Math.max(0, r.shootCooldown - dt);
   const shootKey = r.isPlayer2 ? 'ñ' : ' ';
   const gpShoot = isGamepadActionActive('shoot', playerNum);
+
   if ((KEYS[shootKey] || gpShoot) && r.inventory.length > 0 && r.shootCooldown <= 0) {
     if (r.isInShootZone()) {
       const ballIdx = r.inventory.shift();
@@ -1281,63 +1466,86 @@ function updatePlayerRobot(r, dt) {
     }
   }
 
-  // Climb Action trigger (V for Player 1, P for Player 2 or Gamepad)
-  const climbKey = r.isPlayer2 ? 'p' : 'v';
-  const gpClimb = isGamepadActionActive('climb', playerNum);
-  const z1T = inZone1(r);
-  let shouldAttach = false;
-  let attachT = 0.05;
+  // ── 5. CLIMBER HOOK WORKFLOW (Gancho de Fricción en Brace) ────
+  const inContact = inContactZone(r) || inZone1(r) !== null;
+  const hookUpKey = r.isPlayer2 ? 'k' : 'r';
+  const hookDownKey = r.isPlayer2 ? 'j' : 'f';
+  const legacyClimbKey = r.isPlayer2 ? 'p' : 'v';
+  
+  const gpHookUp = isGamepadActionActive('hookRaise', playerNum);
+  const gpHookDown = isGamepadActionActive('hookLower', playerNum);
 
-  if (KEYS[climbKey] || gpClimb) {
-    if (z1T !== null) {
-      shouldAttach = true;
-      attachT = Math.max(0.05, z1T);
-    } else if (inContactZone(r)) {
-      shouldAttach = true;
-      attachT = 0.05;
+  if (r.state !== 'climbing') {
+    // 5.1 Subir gancho verticalmente al encarar el brace
+    if (inContact && (KEYS[hookUpKey] || gpHookUp)) {
+      if (r.climberHookState === 'idle') {
+        r.climberHookState = 'raised';
+        playSound('pickup');
+      }
     }
-  }
 
-  if (shouldAttach) {
-    r.state = 'climbing';
-    r.climbT = attachT;
-    
-    // Auto-attach buddy climber
-    let closestAlly = null;
-    let closestDist = Infinity;
-    robots.forEach(a => {
-      if (a.id !== r.id && a.alliance === r.alliance && a.state !== 'climbing') {
-        const d = Math.hypot(a.x - r.x, a.y - r.y);
-        if (d < 0.9 && d < closestDist) {
-          closestDist = d;
-          closestAlly = a;
+    // 5.2 Bajar gancho para hacer fricción y anclarse
+    if (inContact && (KEYS[hookDownKey] || gpHookDown || KEYS[legacyClimbKey])) {
+      if (r.climberHookState === 'raised' || r.climberHookState === 'idle') {
+        r.climberHookState = 'anchoring';
+        r.climberAnchorTimer = r.specs.climbAnchorTime || 2.0;
+        playSound('climb');
+      }
+    }
+
+    // 5.3 Proceso de anclaje con temporizador
+    if (r.climberHookState === 'anchoring') {
+      r.climberAnchorTimer -= dt;
+      if (r.climberAnchorTimer <= 0) {
+        r.climberHookState = 'anchored';
+        r.state = 'climbing';
+        const z1T = inZone1(r);
+        r.climbT = z1T !== null ? Math.max(0.05, z1T) : 0.05;
+        playSound('score');
+
+        // Auto-anclar robot de apoyo (Buddy climber) si está cerca
+        let closestAlly = null;
+        let closestDist = Infinity;
+        robots.forEach(a => {
+          if (a.id !== r.id && a.alliance === r.alliance && a.state !== 'climbing') {
+            const d = Math.hypot(a.x - r.x, a.y - r.y);
+            if (d < 0.9 && d < closestDist) {
+              closestDist = d;
+              closestAlly = a;
+            }
+          }
+        });
+
+        if (closestAlly) {
+          closestAlly.state = 'climbing';
+          closestAlly.isBuddy = true;
+          closestAlly.buddyOf = r.id;
+          closestAlly.climberHookState = 'anchored';
+          closestAlly.climbT = 0.0;
         }
       }
-    });
-
-    if (closestAlly) {
-      closestAlly.state = 'climbing';
-      closestAlly.isBuddy = true;
-      closestAlly.buddyOf = r.id;
-      closestAlly.climbT = 0.0;
     }
   }
 }
 
-// ── 7.5 CLIMBING UPDATER (Runs for both player & bot climbers) ────
+// ── 7.5 CLIMBING UPDATER (Avance R2 / Retroceso L2 en Rampa) ─────
 function updateClimbingRobot(r, dt) {
   if (r.isPlayer) {
-    const climbKey = r.isPlayer2 ? 'p' : 'v';
+    const playerNum = r.isPlayer2 ? 2 : 1;
     const upKey = r.isPlayer2 ? 'arrowup' : 'w';
     const downKey = r.isPlayer2 ? 'arrowdown' : 's';
-    const playerNum = r.isPlayer2 ? 2 : 1;
-    const gpMove = getGamepadMoveVector(playerNum);
-    const gpUp = isGamepadActionActive('climbUp', playerNum);
-    const gpDown = isGamepadActionActive('climbDown', playerNum);
+    const legacyClimbKey = r.isPlayer2 ? 'p' : 'v';
+    
+    const gpAdvance = isGamepadActionActive('climbAdvance', playerNum);
+    const gpReverse = isGamepadActionActive('climbReverse', playerNum);
+    const gpInputs = getGamepadArcadeInputs(playerNum);
     
     let climbDir = 0;
-    if (KEYS[climbKey] || KEYS[upKey] || gpUp || gpMove.y < -0.3) climbDir = 1;
-    else if (KEYS[downKey] || gpDown || gpMove.y > 0.3) climbDir = -1;
+    if (gpAdvance || KEYS[upKey] || KEYS[legacyClimbKey] || gpInputs.throttle > 0.3) {
+      climbDir = 1;
+    } else if (gpReverse || KEYS[downKey] || gpInputs.throttle < -0.3) {
+      climbDir = -1;
+    }
     
     if (climbDir !== 0) {
       const brace = BRACES[r.alliance];
@@ -1351,14 +1559,17 @@ function updateClimbingRobot(r, dt) {
 
       r.climbT = Math.max(0, Math.min(1.0, r.climbT + climbDir * (r.specs.climbSpeed / len) * dt * speedScale));
       
+      // Desenganchar si llega al piso retrocediendo
       if (r.climbT <= 0.001 && climbDir === -1) {
         r.state = 'idle';
+        r.climberHookState = 'idle';
         r.climbT = 0.0;
         robots.forEach(a => {
           if (a.state === 'climbing' && a.isBuddy && a.buddyOf === r.id) {
             a.state = 'idle';
             a.isBuddy = false;
             a.buddyOf = null;
+            a.climberHookState = 'idle';
             a.climbT = 0.0;
           }
         });
@@ -1370,7 +1581,8 @@ function updateClimbingRobot(r, dt) {
       }
     }
   } else if (!r.isBuddy) {
-    // Bot climbing
+    // Bot escalando automáticamente
+    r.climberHookState = 'anchored';
     const brace = BRACES[r.alliance];
     const dx = brace.endX - brace.startX;
     const dy = brace.endY - brace.startY;
@@ -1383,17 +1595,17 @@ function updateClimbingRobot(r, dt) {
     r.climbT = Math.min(0.9, r.climbT + (r.specs.climbSpeed / len) * dt * speedScale); // bots climb to 90%
   }
 
-  // Update physical coordinates
+  // Actualizar coordenadas físicas sobre la diagonal del brace
   const brace = BRACES[r.alliance];
   r.x = brace.startX + (brace.endX - brace.startX) * r.climbT;
   r.y = brace.startY + (brace.endY - brace.startY) * r.climbT;
   r.angle = Math.atan2(brace.endY - brace.startY, brace.endX - brace.startX);
 
-  // Drag buddy
+  // Arrastre del robot aliado
   if (!r.isBuddy) {
     robots.forEach(a => {
       if (a.state === 'climbing' && a.isBuddy && a.buddyOf === r.id) {
-        a.climbT = Math.max(0, r.climbT - 0.15); // Offset buddy behind
+        a.climbT = Math.max(0, r.climbT - 0.15);
         a.x = brace.startX + (brace.endX - brace.startX) * a.climbT;
         a.y = brace.startY + (brace.endY - brace.startY) * a.climbT;
         a.angle = r.angle;
@@ -2345,6 +2557,52 @@ function renderRobots(c, cEl) {
     c.save();
     c.translate(px, py);
 
+    // 1. DIBUJO DE LA CREMALLERA TRASERA DE LINEAR MOTION
+    // Se extiende hacia atrás (eje -X en espacio rotado del robot)
+    if (r.linearMotionProgress > 0.02) {
+      c.save();
+      c.rotate(r.angle);
+      const extLen = half * 1.5 * r.linearMotionProgress; // Extensión física (~40cm)
+      const rackW = size * 0.72;
+
+      // Guías metálicas y rieles
+      c.fillStyle = '#1e293b';
+      c.strokeStyle = '#475569';
+      c.lineWidth = 1.5;
+      c.fillRect(-half - extLen, -rackW / 2, extLen, rackW);
+      c.strokeRect(-half - extLen, -rackW / 2, extLen, rackW);
+
+      // Dientes de engranaje (cremallera)
+      c.fillStyle = '#64748b';
+      const teethCount = Math.max(2, Math.floor(6 * r.linearMotionProgress));
+      for (let t = 0; t < teethCount; t++) {
+        const tx = -half - (t + 0.5) * (extLen / teethCount);
+        c.fillRect(tx - 1.5, -rackW / 2 - 2, 3, 2);
+        c.fillRect(tx - 1.5, rackW / 2, 3, 2);
+      }
+
+      // Cámara de almacenamiento expandida
+      c.fillStyle = r.alliance === 'red' ? 'rgba(232, 48, 72, 0.25)' : 'rgba(56, 189, 248, 0.25)';
+      c.strokeStyle = r.alliance === 'red' ? '#e83048' : '#38bdf8';
+      c.lineWidth = 1;
+      c.fillRect(-half - extLen + 3, -rackW / 2 + 3, Math.max(0, extLen - 6), rackW - 6);
+      c.strokeRect(-half - extLen + 3, -rackW / 2 + 3, Math.max(0, extLen - 6), rackW - 6);
+
+      // Bolitas dentro de la cámara extendida
+      if (r.inventory.length > 0) {
+        const dots = Math.min(r.inventory.length, 5);
+        c.fillStyle = COL.ball;
+        for (let d = 0; d < dots; d++) {
+          const dx = -half - 6 - (d * 5 * r.linearMotionProgress);
+          c.beginPath();
+          c.arc(dx, (d % 2 === 0 ? -4 : 4), 2.5, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+      c.restore();
+    }
+
+    // 2. RESPLANDOR Y CHASIS DEL ROBOT
     if (r.isPlayer) {
       c.shadowColor = r.isPlayer2 ? 'rgba(92,154,255,0.45)' : 'rgba(255,215,0,0.45)';
       c.shadowBlur = 12;
@@ -2355,8 +2613,10 @@ function renderRobots(c, cEl) {
     const texture = processedTex || baseTex;
 
     if (texture && texture.complete && texture.naturalWidth > 0) {
+      c.save();
       c.rotate(r.angle);
       c.drawImage(texture, -half, -half, size, size);
+      c.restore();
     } else {
       const bodyColor = r.alliance === 'red' ? COL.redBot : COL.blueBot;
       const lightColor = r.alliance === 'red' ? COL.redBotLight : COL.blueBotLight;
@@ -2387,30 +2647,98 @@ function renderRobots(c, cEl) {
     c.shadowColor = 'transparent';
     c.shadowBlur = 0;
 
-    // Inventory bar
+    // 3. GANCHO DE ESCALADA / ESTADO DE ANCLAJE
+    if (r.climberHookState === 'raised') {
+      c.save();
+      c.rotate(r.angle);
+      // Brazo vertical de gancho extendido hacia adelante
+      c.fillStyle = '#e2e8f0';
+      c.strokeStyle = '#ffd700';
+      c.lineWidth = 2;
+      c.fillRect(half - 2, -3, 10, 6);
+      c.strokeRect(half - 2, -3, 10, 6);
+      c.fillStyle = '#ffd700';
+      c.beginPath();
+      c.arc(half + 8, 0, 3.5, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+
+      c.fillStyle = '#ffd700';
+      c.font = `bold ${Math.max(8, S(cEl) * 0.008)}px Orbitron`;
+      c.textAlign = 'center';
+      c.fillText('⚓ GANCHO ARRIBA', 0, -half - 16);
+    } else if (r.climberHookState === 'anchoring') {
+      // Dial circular con temporizador de anclaje
+      c.save();
+      c.fillStyle = 'rgba(10, 12, 20, 0.85)';
+      c.beginPath();
+      c.arc(0, -half - 20, 12, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#38bdf8';
+      c.lineWidth = 2.5;
+      const totalTime = r.specs.climbAnchorTime || 2.0;
+      const prog = 1.0 - Math.max(0, r.climberAnchorTimer / totalTime);
+      c.beginPath();
+      c.arc(0, -half - 20, 10, -Math.PI / 2, -Math.PI / 2 + prog * Math.PI * 2);
+      c.stroke();
+      c.fillStyle = '#fff';
+      c.font = `bold ${Math.max(7, S(cEl) * 0.0075)}px Orbitron`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(`${r.climberAnchorTimer.toFixed(1)}s`, 0, -half - 20);
+      c.restore();
+    } else if (r.climberHookState === 'anchored' || r.state === 'climbing') {
+      c.fillStyle = '#2dd264';
+      c.font = `bold ${Math.max(8, S(cEl) * 0.008)}px Montserrat`;
+      c.textAlign = 'center';
+      c.fillText('✓ ANCLADO', 0, -half - 16);
+    }
+
+    // 4. ALERTA DE BLOQUEO DE RETRACCIÓN
+    if (r.retractBlockedTimer > 0) {
+      c.save();
+      c.fillStyle = 'rgba(232, 48, 72, 0.95)';
+      c.strokeStyle = '#fff';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.roundRect(-60, -half - 38, 120, 18, 4);
+      c.fill();
+      c.stroke();
+      c.fillStyle = '#ffffff';
+      c.font = `bold ${Math.max(7, S(cEl) * 0.0075)}px Montserrat`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText('⚠️ ¡Vacía bolas para retraer!', 0, -half - 29);
+      c.restore();
+    }
+
+    // 5. BARRA DE INVENTARIO DINÁMICA
+    const effectiveCap = r.getEffectiveCapacity();
     if (r.specs.capacity > 0 && r.state !== 'climbing') {
       const barW = size;
       const barH = 4;
       const barY = -half - 8;
-      const fill = r.inventory.length / r.specs.capacity;
+      const fill = Math.min(1.0, r.inventory.length / effectiveCap);
 
       c.fillStyle = 'rgba(0,0,0,0.5)';
       c.fillRect(-half, barY, barW, barH);
-      c.fillStyle = fill > 0.8 ? '#e83048' : fill > 0.5 ? '#f0c040' : '#2dd264';
+      c.fillStyle = fill > 0.8 ? '#e83048' : fill > 0.5 ? '#f0c040' : (r.linearMotionExtended ? '#38bdf8' : '#2dd264');
       c.fillRect(-half, barY, barW * fill, barH);
       c.strokeStyle = 'rgba(255,255,255,0.15)';
       c.lineWidth = 0.5;
       c.strokeRect(-half, barY, barW, barH);
     }
 
+    // 6. ETIQUETA DEL ROBOT
     let label = r.isPlayer1 ? '★ TÚ' : r.isPlayer2 ? '★ P2' : r.id.slice(-2);
     c.fillStyle = 'rgba(10,12,20,0.8)';
     c.beginPath();
     c.roundRect(-16, half + 2, 32, 12, 3);
     c.fill();
     c.fillStyle = r.isPlayer1 ? COL.playerHighlight : r.isPlayer2 ? '#5c9aff' : '#ccc';
-    c.font = `bold ${S(cEl) * 0.009}px Montserrat`;
+    c.font = `bold ${Math.max(8, S(cEl) * 0.009)}px Montserrat`;
     c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
     c.fillText(label, 0, half + 11);
 
     c.restore();
@@ -2553,23 +2881,40 @@ function updateHUD() {
     return 'Quieto';
   };
 
+  const getHookStatusText = (r) => {
+    if (!r) return 'Libre';
+    if (r.climberHookState === 'raised') return '⚓ Desplegado (Listo)';
+    if (r.climberHookState === 'anchoring') return `⏳ Anclando (${r.climberAnchorTimer.toFixed(1)}s)`;
+    if (r.climberHookState === 'anchored' || r.state === 'climbing') return '✓ Anclado al Brace';
+    return 'Libre';
+  };
+
+  const hudRedLinearEl = document.getElementById('hudRedLinear');
+  const hudRedHookEl = document.getElementById('hudRedHook');
+  const hudBlueLinearEl = document.getElementById('hudBlueLinear');
+  const hudBlueHookEl = document.getElementById('hudBlueHook');
+
   if (CONFIG.alliance === 'red') {
     // Left: Player 1 (Red)
     if (p1Header) {
-      p1Header.textContent = '👤 JUGADOR 1 (WASD)';
+      p1Header.textContent = '👤 JUGADOR 1 (WASD / MANDO 1)';
       p1Header.style.color = 'var(--red-light)';
     }
-    document.getElementById('hudRedInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
+    document.getElementById('hudRedInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.getEffectiveCapacity()} (${playerRobot.linearMotionExtended ? '100%' : '30%'})`;
     document.getElementById('hudRedStatus').textContent = getStatusText(playerRobot.state);
+    if (hudRedLinearEl) hudRedLinearEl.textContent = playerRobot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+    if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(playerRobot);
 
     // Right: Player 2 or Rival Bot (Blue)
     if (CONFIG.gameMode === 2 && player2Robot) {
       if (p2Header) {
-        p2Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - FLECHAS)' : '👥 JUGADOR 2 (COMPAÑERO - FLECHAS)';
+        p2Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - MANDO 2)' : '👥 JUGADOR 2 (COMPAÑERO - MANDO 2)';
         p2Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--blue-light)' : 'var(--red-light)';
       }
-      document.getElementById('hudBlueInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
+      document.getElementById('hudBlueInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.getEffectiveCapacity()} (${player2Robot.linearMotionExtended ? '100%' : '30%'})`;
       document.getElementById('hudBlueStatus').textContent = getStatusText(player2Robot.state);
+      if (hudBlueLinearEl) hudBlueLinearEl.textContent = player2Robot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+      if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(player2Robot);
     } else {
       if (p2Header) {
         p2Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
@@ -2578,25 +2923,31 @@ function updateHUD() {
       if (blueR1) {
         document.getElementById('hudBlueInv').textContent = `${blueR1.inventory.length} / ${blueR1.specs.capacity}`;
         document.getElementById('hudBlueStatus').textContent = getStatusText(blueR1.state);
+        if (hudBlueLinearEl) hudBlueLinearEl.textContent = '📦 100% (Auto)';
+        if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(blueR1);
       }
     }
   } else {
     // Right: Player 1 (Blue)
     if (p2Header) {
-      p2Header.textContent = '👤 JUGADOR 1 (WASD)';
+      p2Header.textContent = '👤 JUGADOR 1 (WASD / MANDO 1)';
       p2Header.style.color = 'var(--blue-light)';
     }
-    document.getElementById('hudBlueInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.specs.capacity}`;
+    document.getElementById('hudBlueInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.getEffectiveCapacity()} (${playerRobot.linearMotionExtended ? '100%' : '30%'})`;
     document.getElementById('hudBlueStatus').textContent = getStatusText(playerRobot.state);
+    if (hudBlueLinearEl) hudBlueLinearEl.textContent = playerRobot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+    if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(playerRobot);
 
     // Left: Player 2 or Rival Bot (Red)
     if (CONFIG.gameMode === 2 && player2Robot) {
       if (p1Header) {
-        p1Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - FLECHAS)' : '👥 JUGADOR 2 (COMPAÑERO - FLECHAS)';
+        p1Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - MANDO 2)' : '👥 JUGADOR 2 (COMPAÑERO - MANDO 2)';
         p1Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--red-light)' : 'var(--blue-light)';
       }
-      document.getElementById('hudRedInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.specs.capacity}`;
+      document.getElementById('hudRedInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.getEffectiveCapacity()} (${player2Robot.linearMotionExtended ? '100%' : '30%'})`;
       document.getElementById('hudRedStatus').textContent = getStatusText(player2Robot.state);
+      if (hudRedLinearEl) hudRedLinearEl.textContent = player2Robot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+      if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(player2Robot);
     } else {
       if (p1Header) {
         p1Header.textContent = '🤖 BOT RIVAL 1 (AUTO)';
@@ -2605,6 +2956,8 @@ function updateHUD() {
       if (redR1) {
         document.getElementById('hudRedInv').textContent = `${redR1.inventory.length} / ${redR1.specs.capacity}`;
         document.getElementById('hudRedStatus').textContent = getStatusText(redR1.state);
+        if (hudRedLinearEl) hudRedLinearEl.textContent = '📦 100% (Auto)';
+        if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(redR1);
       }
     }
   }
@@ -2899,6 +3252,7 @@ function readConfigFromUI() {
   CONFIG.specs.capacity = parseInt(document.getElementById('capacity').value);
   CONFIG.specs.accuracy = parseInt(document.getElementById('accuracy').value);
   CONFIG.specs.climbSpeed = parseFloat(document.getElementById('climbSpeed').value);
+  CONFIG.specs.climbAnchorTime = parseFloat(document.getElementById('climbAnchorTime') ? document.getElementById('climbAnchorTime').value : 2.0);
   CONFIG.hpAccuracy = parseInt(document.getElementById('hpAccuracy').value);
   
   CONFIG.allyMultiplier = parseFloat(document.getElementById('allyDiffSlider').value);
@@ -2993,6 +3347,7 @@ function initSetupUI() {
     { id: 'capacity', display: 'capacityVal', suffix: ' pelotas', decimals: 0 },
     { id: 'accuracy', display: 'accuracyVal', suffix: '%', decimals: 0 },
     { id: 'climbSpeed', display: 'climbSpeedVal', suffix: ' m/s', decimals: 1 },
+    { id: 'climbAnchorTime', display: 'climbAnchorTimeVal', suffix: ' s', decimals: 1 },
     { id: 'hpAccuracy', display: 'hpAccuracyVal', suffix: '%', decimals: 0 },
   ];
 

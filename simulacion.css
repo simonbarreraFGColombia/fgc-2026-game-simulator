@@ -1135,6 +1135,46 @@ body:has(.sim-app) {
   color: var(--color-text-muted);
 }
 
+/* ── Driver Tab Navigation ── */
+.gp-tab-nav {
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+}
+
+.gp-tab-btn {
+  flex: 1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.76rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.gp-tab-btn:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.gp-tab-btn.active {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(56, 189, 248, 0.15));
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
 /* ── Modal Groups & Live Tester ── */
 .modal-group {
   display: flex;
@@ -1165,10 +1205,21 @@ body:has(.sim-app) {
 
 .gp-live-tester {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 14px;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
   align-items: center;
   padding: 8px 4px;
+}
+
+.gp-sticks-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  padding: 10px 8px;
 }
 
 .gp-stick-preview {
@@ -1179,8 +1230,8 @@ body:has(.sim-app) {
 }
 
 .gp-stick-base {
-  width: 64px;
-  height: 64px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: #080b12;
   border: 2px solid rgba(56, 189, 248, 0.3);
@@ -1189,15 +1240,15 @@ body:has(.sim-app) {
 }
 
 .gp-stick-thumb {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: radial-gradient(circle, #38bdf8, #0284c7);
   position: absolute;
-  top: calc(50% - 11px);
-  left: calc(50% - 11px);
+  top: calc(50% - 10px);
+  left: calc(50% - 10px);
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
-  transition: transform 0.05s linear;
+  transition: transform 0.04s linear;
 }
 
 .gp-stick-label {
