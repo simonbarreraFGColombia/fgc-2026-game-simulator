@@ -131,6 +131,30 @@
             </div>
           </div>
 
+          <!-- Linear Motion Configuration -->
+          <div class="config-card">
+            <div class="config-card-header">
+              <span class="config-icon">📦</span>
+              <h3>ROBOTS CON LINEAR MOTION</h3>
+            </div>
+            <div class="config-row">
+              <label>Distribución</label>
+              <div class="toggle-group" id="linearRobotsToggle">
+                <button class="toggle-btn" data-value="0">0 (Ninguno)</button>
+                <button class="toggle-btn active" data-value="1">1 (Solo Tú)</button>
+                <button class="toggle-btn" data-value="3">3 (Alianza)</button>
+                <button class="toggle-btn" data-value="6">6 (Todos)</button>
+              </div>
+            </div>
+            <div class="spec-row" style="margin-top: -2px;">
+              <div class="spec-info">
+                <label>Cantidad de Robots con Almacenamiento Expandible</label>
+                <span class="spec-unit" id="linearRobotsCountVal">1 robot</span>
+              </div>
+              <input type="range" class="spec-slider" id="linearRobotsCount" min="0" max="6" step="1" value="1">
+            </div>
+          </div>
+
           <!-- Modo de Juego -->
           <div class="config-card">
             <div class="config-card-header">

@@ -139,16 +139,16 @@ function resolveRobotCollisions() {
     }
   });
 
-  // 2. Resolve collisions between field robots, or field vs climbing robots
-  // We run multiple passes of pairwise circle-circle collision resolution to resolve overlaps cleanly
+  // 2. Resolve collisions between robots on the ground
+  // If either robot is climbing (elevated on the rampa), ground robots can pass underneath freely!
   for (let pass = 0; pass < 4; pass++) {
     for (let i = 0; i < robots.length; i++) {
       for (let j = i + 1; j < robots.length; j++) {
         const r1 = robots[i];
         const r2 = robots[j];
         
-        // If both are climbing, we already handled it above, skip
-        if (r1.state === 'climbing' && r2.state === 'climbing') continue;
+        // If either robot is climbing/elevated, skip collision so ground robots pass underneath!
+        if (r1.state === 'climbing' || r2.state === 'climbing') continue;
         
         const dx = r2.x - r1.x;
         const dy = r2.y - r1.y;
@@ -160,21 +160,11 @@ function resolveRobotCollisions() {
           const nx = dist > 0.0001 ? dx / dist : (Math.random() - 0.5 || 1);
           const ny = dist > 0.0001 ? dy / dist : 0;
           
-          if (r1.state === 'climbing') {
-            // Only push r2 (field robot)
-            r2.x += nx * overlap;
-            r2.y += ny * overlap;
-          } else if (r2.state === 'climbing') {
-            // Only push r1 (field robot)
-            r1.x -= nx * overlap;
-            r1.y -= ny * overlap;
-          } else {
-            // Both are on the field, push both equally
-            r1.x -= nx * (overlap / 2);
-            r1.y -= ny * (overlap / 2);
-            r2.x += nx * (overlap / 2);
-            r2.y += ny * (overlap / 2);
-          }
+          // Both are on the field, push both equally
+          r1.x -= nx * (overlap / 2);
+          r1.y -= ny * (overlap / 2);
+          r2.x += nx * (overlap / 2);
+          r2.y += ny * (overlap / 2);
           
           // Re-clamp field robots to boundaries
           const half = ROBOT_SIZE_M / 2;
@@ -398,6 +388,7 @@ const CONFIG = {
     climbSpeed: 0.5,
     climbAnchorTime: 2.0,
   },
+  linearMotionRobots: 1, // Number of robots with expandable linear motion (0 to 6)
   gameMode: 1, // 1 = Solo, 2 = 2 Players Coop
   coopRelation: 'teammates', // 'teammates' | 'rivals'
   allyMultiplier: 0.8,
@@ -595,48 +586,39 @@ function getGamepadArcadeInputs(driverNum = 1) {
   const cfg = GAMEPADS_CONFIG[driverNum] || DEFAULT_GAMEPADS_CONFIG[1];
   const deadzone = cfg.deadzone || 0.18;
 
-  // 1. Left Stick (Axes 0 = LX, Axes 1 = LY)
+  // 1. Left Stick: ONLY LY (Axes 1) for Forward / Backward Throttle
   if (gp.axes && gp.axes.length >= 2) {
     const lx = gp.axes[0];
     const ly = gp.axes[1];
-    const lmag = Math.hypot(lx, ly);
-    if (lmag > deadzone) {
-      const norm = Math.min(1.0, (lmag - deadzone) / (1.0 - deadzone));
-      result.leftStick.x = (lx / lmag) * norm;
-      result.leftStick.y = (ly / lmag) * norm;
-      result.leftStick.mag = norm;
+    // Keep raw values for modal visual stick tester
+    result.leftStick.x = Math.abs(lx) > deadzone ? lx : 0;
+    
+    if (Math.abs(ly) > deadzone) {
+      const normY = Math.sign(ly) * Math.min(1.0, (Math.abs(ly) - deadzone) / (1.0 - deadzone));
+      result.leftStick.y = normY;
+      result.leftStick.mag = Math.abs(normY);
     }
   }
 
-  // 2. Right Stick (Axes 2 = RX, Axes 3 = RY on standard controllers)
-  if (gp.axes && gp.axes.length >= 4) {
+  // 2. Right Stick: ONLY RX (Axes 2) for Left / Right Steering
+  if (gp.axes && gp.axes.length >= 3) {
     const rx = gp.axes[2];
-    const ry = gp.axes[3];
-    const rmag = Math.hypot(rx, ry);
-    if (rmag > deadzone) {
-      const norm = Math.min(1.0, (rmag - deadzone) / (1.0 - deadzone));
-      result.rightStick.x = (rx / rmag) * norm;
-      result.rightStick.y = (ry / rmag) * norm;
-      result.rightStick.mag = norm;
-    }
-  } else if (gp.axes && gp.axes.length >= 3) {
-    const rx = gp.axes[2];
+    const ry = gp.axes.length >= 4 ? gp.axes[3] : 0;
+    result.rightStick.y = Math.abs(ry) > deadzone ? ry : 0;
+    
     if (Math.abs(rx) > deadzone) {
-      result.rightStick.x = Math.sign(rx) * Math.min(1.0, (Math.abs(rx) - deadzone) / (1.0 - deadzone));
-      result.rightStick.mag = Math.abs(result.rightStick.x);
+      const normX = Math.sign(rx) * Math.min(1.0, (Math.abs(rx) - deadzone) / (1.0 - deadzone));
+      result.rightStick.x = normX;
+      result.rightStick.mag = Math.abs(normX);
     }
   }
 
   // Split-Arcade interpretation:
-  // Throttle = -LeftStick.Y (up is negative Y in Gamepad API)
+  // Throttle = -LeftStick.Y ONLY (Stick Arriba = Avance > 0, Stick Abajo = Retroceso < 0)
   result.throttle = -result.leftStick.y;
 
-  // Steering = RightStick.X (or fallback to LeftStick.X if RightStick is idle)
-  if (Math.abs(result.rightStick.x) > 0.05) {
-    result.steering = result.rightStick.x;
-  } else if (Math.abs(result.leftStick.x) > 0.1) {
-    result.steering = result.leftStick.x;
-  }
+  // Steering = RightStick.X ONLY (Stick Derecha = Giro Der > 0, Stick Izquierda = Giro Izq < 0)
+  result.steering = result.rightStick.x;
 
   return result;
 }
@@ -1131,6 +1113,7 @@ class Robot {
     this.prevY = 0;
 
     // Linear Motion (Cámara de almacenamiento desplegable / retraíble)
+    this.hasLinearMotion = false;      // Configurable por el usuario (0 a 6 robots)
     this.linearMotionExtended = false; // Retraído por defecto (30% capacidad)
     this.linearMotionProgress = 0.0;   // 0.0 = retraído, 1.0 = desplegado
     this.retractBlockedTimer = 0.0;   // Temporizador para alerta visual de bloqueo
@@ -1144,10 +1127,13 @@ class Robot {
   }
 
   getEffectiveCapacity() {
-    if (this.linearMotionExtended) {
-      return this.specs.capacity;
+    if (!this.hasLinearMotion) {
+      return this.specs.capacity; // Tolva fija convencional (100% de capacidad fija)
     }
-    return Math.max(1, Math.floor(this.specs.capacity * 0.3));
+    if (this.linearMotionExtended) {
+      return this.specs.capacity; // Linear Motion desplegado (100%)
+    }
+    return Math.max(1, Math.floor(this.specs.capacity * 0.3)); // Linear Motion retraído (30%)
   }
 
   getShootTarget() {
@@ -1237,9 +1223,6 @@ function initRobots() {
         climbSpeed: CONFIG.specs.climbSpeed * CONFIG.allyMultiplier,
         climbAnchorTime: CONFIG.specs.climbAnchorTime || 2.0,
       };
-      // Bots start with linear motion extended to use full capacity
-      r.linearMotionExtended = true;
-      r.linearMotionProgress = 1.0;
     }
     robots.push(r);
   }
@@ -1274,11 +1257,31 @@ function initRobots() {
         climbSpeed: CONFIG.specs.climbSpeed * CONFIG.rivalMultiplier,
         climbAnchorTime: CONFIG.specs.climbAnchorTime || 2.0,
       };
-      r.linearMotionExtended = true;
-      r.linearMotionProgress = 1.0;
     }
     robots.push(r);
   }
+
+  // Asignar Linear Motion según CONFIG.linearMotionRobots (0 a 6)
+  const linearCount = CONFIG.linearMotionRobots !== undefined ? CONFIG.linearMotionRobots : 1;
+  const prioritized = [];
+  if (playerRobot) prioritized.push(playerRobot);
+  if (player2Robot && !prioritized.includes(player2Robot)) prioritized.push(player2Robot);
+  robots.forEach(r => {
+    if (!prioritized.includes(r)) prioritized.push(r);
+  });
+
+  prioritized.forEach((r, idx) => {
+    const hasLM = idx < linearCount;
+    r.hasLinearMotion = hasLM;
+    if (hasLM) {
+      // Si es bot, inicia desplegado para usar capacidad; si es jugador, inicia retraído
+      r.linearMotionExtended = !r.isPlayer;
+      r.linearMotionProgress = r.linearMotionExtended ? 1.0 : 0.0;
+    } else {
+      r.linearMotionExtended = false;
+      r.linearMotionProgress = 0.0;
+    }
+  });
 }
 
 function inContactZone(robot) {
@@ -1322,37 +1325,43 @@ function updatePlayerRobot(r, dt) {
   const gpInputs = getGamepadArcadeInputs(playerNum);
 
   // ── 1. LINEAR MOTION (Cremallera de Almacenamiento Retráctil) ──
-  const deployKey = r.isPlayer2 ? 'i' : 'e';
-  const retractKey = r.isPlayer2 ? 'u' : 'q';
-  const gpDeploy = isGamepadActionActive('linearDeploy', playerNum);
-  const gpRetract = isGamepadActionActive('linearRetract', playerNum);
+  if (r.hasLinearMotion) {
+    const deployKey = r.isPlayer2 ? 'i' : 'e';
+    const retractKey = r.isPlayer2 ? 'u' : 'q';
+    const gpDeploy = isGamepadActionActive('linearDeploy', playerNum);
+    const gpRetract = isGamepadActionActive('linearRetract', playerNum);
 
-  if (KEYS[deployKey] || gpDeploy) {
-    if (!r.linearMotionExtended) {
-      r.linearMotionExtended = true;
-      playSound('pickup');
-    }
-  }
-
-  if (KEYS[retractKey] || gpRetract) {
-    if (r.linearMotionExtended) {
-      const allowedRetracted = Math.max(1, Math.floor(r.specs.capacity * 0.3));
-      if (r.inventory.length > allowedRetracted) {
-        // Bloquear repliegue si hay bolas sobrantes
-        r.retractBlockedTimer = 1.8;
-        playSound('climb'); // Sonido de advertencia/buzz
-      } else {
-        r.linearMotionExtended = false;
+    if (KEYS[deployKey] || gpDeploy) {
+      if (!r.linearMotionExtended) {
+        r.linearMotionExtended = true;
         playSound('pickup');
       }
     }
-  }
 
-  // Animar transición visual de la cremallera
-  const targetLinearProg = r.linearMotionExtended ? 1.0 : 0.0;
-  r.linearMotionProgress += (targetLinearProg - r.linearMotionProgress) * Math.min(1.0, dt * 8.0);
-  if (r.retractBlockedTimer > 0) {
-    r.retractBlockedTimer -= dt;
+    if (KEYS[retractKey] || gpRetract) {
+      if (r.linearMotionExtended) {
+        const allowedRetracted = Math.max(1, Math.floor(r.specs.capacity * 0.3));
+        if (r.inventory.length > allowedRetracted) {
+          // Bloquear repliegue si hay bolas sobrantes
+          r.retractBlockedTimer = 1.8;
+          playSound('climb'); // Sonido de advertencia/buzz
+        } else {
+          r.linearMotionExtended = false;
+          playSound('pickup');
+        }
+      }
+    }
+
+    // Animar transición visual de la cremallera
+    const targetLinearProg = r.linearMotionExtended ? 1.0 : 0.0;
+    r.linearMotionProgress += (targetLinearProg - r.linearMotionProgress) * Math.min(1.0, dt * 8.0);
+    if (r.retractBlockedTimer > 0) {
+      r.retractBlockedTimer -= dt;
+    }
+  } else {
+    r.linearMotionExtended = false;
+    r.linearMotionProgress = 0.0;
+    r.retractBlockedTimer = 0.0;
   }
 
   // ── 2. DRIVETRAIN (Split-Arcade Drive + Keyboard) ─────────────
@@ -2558,8 +2567,8 @@ function renderRobots(c, cEl) {
     c.translate(px, py);
 
     // 1. DIBUJO DE LA CREMALLERA TRASERA DE LINEAR MOTION
-    // Se extiende hacia atrás (eje -X en espacio rotado del robot)
-    if (r.linearMotionProgress > 0.02) {
+    // Se dibuja ÚNICAMENTE si este robot tiene equipado Linear Motion y está extendiéndose
+    if (r.hasLinearMotion && r.linearMotionProgress > 0.02) {
       c.save();
       c.rotate(r.angle);
       const extLen = half * 1.5 * r.linearMotionProgress; // Extensión física (~40cm)
@@ -2694,8 +2703,8 @@ function renderRobots(c, cEl) {
       c.fillText('✓ ANCLADO', 0, -half - 16);
     }
 
-    // 4. ALERTA DE BLOQUEO DE RETRACCIÓN
-    if (r.retractBlockedTimer > 0) {
+    // 4. ALERTA DE BLOQUEO DE RETRACCIÓN (Solo si tiene Linear Motion)
+    if (r.hasLinearMotion && r.retractBlockedTimer > 0) {
       c.save();
       c.fillStyle = 'rgba(232, 48, 72, 0.95)';
       c.strokeStyle = '#fff';
@@ -2722,7 +2731,7 @@ function renderRobots(c, cEl) {
 
       c.fillStyle = 'rgba(0,0,0,0.5)';
       c.fillRect(-half, barY, barW, barH);
-      c.fillStyle = fill > 0.8 ? '#e83048' : fill > 0.5 ? '#f0c040' : (r.linearMotionExtended ? '#38bdf8' : '#2dd264');
+      c.fillStyle = fill > 0.8 ? '#e83048' : fill > 0.5 ? '#f0c040' : (r.hasLinearMotion && r.linearMotionExtended ? '#38bdf8' : '#2dd264');
       c.fillRect(-half, barY, barW * fill, barH);
       c.strokeStyle = 'rgba(255,255,255,0.15)';
       c.lineWidth = 0.5;
@@ -2889,6 +2898,18 @@ function updateHUD() {
     return 'Libre';
   };
 
+  const getLinearStatusText = (r) => {
+    if (!r) return '📦 Fijo [100%]';
+    if (!r.hasLinearMotion) return '📦 Tolva Fija [100%]';
+    return r.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+  };
+
+  const getInvText = (r) => {
+    if (!r) return '0 / 0';
+    if (!r.hasLinearMotion) return `${r.inventory.length} / ${r.specs.capacity}`;
+    return `${r.inventory.length} / ${r.getEffectiveCapacity()} (${r.linearMotionExtended ? '100%' : '30%'})`;
+  };
+
   const hudRedLinearEl = document.getElementById('hudRedLinear');
   const hudRedHookEl = document.getElementById('hudRedHook');
   const hudBlueLinearEl = document.getElementById('hudBlueLinear');
@@ -2900,9 +2921,9 @@ function updateHUD() {
       p1Header.textContent = '👤 JUGADOR 1 (WASD / MANDO 1)';
       p1Header.style.color = 'var(--red-light)';
     }
-    document.getElementById('hudRedInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.getEffectiveCapacity()} (${playerRobot.linearMotionExtended ? '100%' : '30%'})`;
+    document.getElementById('hudRedInv').textContent = getInvText(playerRobot);
     document.getElementById('hudRedStatus').textContent = getStatusText(playerRobot.state);
-    if (hudRedLinearEl) hudRedLinearEl.textContent = playerRobot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+    if (hudRedLinearEl) hudRedLinearEl.textContent = getLinearStatusText(playerRobot);
     if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(playerRobot);
 
     // Right: Player 2 or Rival Bot (Blue)
@@ -2911,9 +2932,9 @@ function updateHUD() {
         p2Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - MANDO 2)' : '👥 JUGADOR 2 (COMPAÑERO - MANDO 2)';
         p2Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--blue-light)' : 'var(--red-light)';
       }
-      document.getElementById('hudBlueInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.getEffectiveCapacity()} (${player2Robot.linearMotionExtended ? '100%' : '30%'})`;
+      document.getElementById('hudBlueInv').textContent = getInvText(player2Robot);
       document.getElementById('hudBlueStatus').textContent = getStatusText(player2Robot.state);
-      if (hudBlueLinearEl) hudBlueLinearEl.textContent = player2Robot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+      if (hudBlueLinearEl) hudBlueLinearEl.textContent = getLinearStatusText(player2Robot);
       if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(player2Robot);
     } else {
       if (p2Header) {
@@ -2921,9 +2942,9 @@ function updateHUD() {
         p2Header.style.color = 'var(--blue-light)';
       }
       if (blueR1) {
-        document.getElementById('hudBlueInv').textContent = `${blueR1.inventory.length} / ${blueR1.specs.capacity}`;
+        document.getElementById('hudBlueInv').textContent = getInvText(blueR1);
         document.getElementById('hudBlueStatus').textContent = getStatusText(blueR1.state);
-        if (hudBlueLinearEl) hudBlueLinearEl.textContent = '📦 100% (Auto)';
+        if (hudBlueLinearEl) hudBlueLinearEl.textContent = getLinearStatusText(blueR1);
         if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(blueR1);
       }
     }
@@ -2933,9 +2954,9 @@ function updateHUD() {
       p2Header.textContent = '👤 JUGADOR 1 (WASD / MANDO 1)';
       p2Header.style.color = 'var(--blue-light)';
     }
-    document.getElementById('hudBlueInv').textContent = `${playerRobot.inventory.length} / ${playerRobot.getEffectiveCapacity()} (${playerRobot.linearMotionExtended ? '100%' : '30%'})`;
+    document.getElementById('hudBlueInv').textContent = getInvText(playerRobot);
     document.getElementById('hudBlueStatus').textContent = getStatusText(playerRobot.state);
-    if (hudBlueLinearEl) hudBlueLinearEl.textContent = playerRobot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+    if (hudBlueLinearEl) hudBlueLinearEl.textContent = getLinearStatusText(playerRobot);
     if (hudBlueHookEl) hudBlueHookEl.textContent = getHookStatusText(playerRobot);
 
     // Left: Player 2 or Rival Bot (Red)
@@ -2944,9 +2965,9 @@ function updateHUD() {
         p1Header.textContent = CONFIG.coopRelation === 'rivals' ? '👥 JUGADOR 2 (RIVAL - MANDO 2)' : '👥 JUGADOR 2 (COMPAÑERO - MANDO 2)';
         p1Header.style.color = CONFIG.coopRelation === 'rivals' ? 'var(--red-light)' : 'var(--blue-light)';
       }
-      document.getElementById('hudRedInv').textContent = `${player2Robot.inventory.length} / ${player2Robot.getEffectiveCapacity()} (${player2Robot.linearMotionExtended ? '100%' : '30%'})`;
+      document.getElementById('hudRedInv').textContent = getInvText(player2Robot);
       document.getElementById('hudRedStatus').textContent = getStatusText(player2Robot.state);
-      if (hudRedLinearEl) hudRedLinearEl.textContent = player2Robot.linearMotionExtended ? '📦 Desplegado [100%]' : '📦 Retraído [30%]';
+      if (hudRedLinearEl) hudRedLinearEl.textContent = getLinearStatusText(player2Robot);
       if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(player2Robot);
     } else {
       if (p1Header) {
@@ -2954,9 +2975,9 @@ function updateHUD() {
         p1Header.style.color = 'var(--red-light)';
       }
       if (redR1) {
-        document.getElementById('hudRedInv').textContent = `${redR1.inventory.length} / ${redR1.specs.capacity}`;
+        document.getElementById('hudRedInv').textContent = getInvText(redR1);
         document.getElementById('hudRedStatus').textContent = getStatusText(redR1.state);
-        if (hudRedLinearEl) hudRedLinearEl.textContent = '📦 100% (Auto)';
+        if (hudRedLinearEl) hudRedLinearEl.textContent = getLinearStatusText(redR1);
         if (hudRedHookEl) hudRedHookEl.textContent = getHookStatusText(redR1);
       }
     }
@@ -3253,8 +3274,13 @@ function readConfigFromUI() {
   CONFIG.specs.accuracy = parseInt(document.getElementById('accuracy').value);
   CONFIG.specs.climbSpeed = parseFloat(document.getElementById('climbSpeed').value);
   CONFIG.specs.climbAnchorTime = parseFloat(document.getElementById('climbAnchorTime') ? document.getElementById('climbAnchorTime').value : 2.0);
-  CONFIG.hpAccuracy = parseInt(document.getElementById('hpAccuracy').value);
   
+  const linearCountSlider = document.getElementById('linearRobotsCount');
+  if (linearCountSlider) {
+    CONFIG.linearMotionRobots = parseInt(linearCountSlider.value);
+  }
+  
+  CONFIG.hpAccuracy = parseInt(document.getElementById('hpAccuracy').value);
   CONFIG.allyMultiplier = parseFloat(document.getElementById('allyDiffSlider').value);
   CONFIG.rivalMultiplier = parseFloat(document.getElementById('rivalDiffSlider').value);
 }
@@ -3275,6 +3301,14 @@ function initSetupUI() {
           initRobots();
         } else if (groupId === 'teamToggle') {
           CONFIG.teamNumber = parseInt(val);
+          initRobots();
+        } else if (groupId === 'linearRobotsToggle') {
+          const v = parseInt(val);
+          CONFIG.linearMotionRobots = v;
+          const slider = document.getElementById('linearRobotsCount');
+          const valEl = document.getElementById('linearRobotsCountVal');
+          if (slider) slider.value = v;
+          if (valEl) valEl.textContent = v === 1 ? '1 robot' : `${v} robots`;
           initRobots();
         } else if (groupId === 'gameModeToggle') {
           CONFIG.gameMode = parseInt(val);
@@ -3303,6 +3337,26 @@ function initSetupUI() {
       });
     });
   });
+
+  // Linear Motion robots slider
+  const linearRobotsSlider = document.getElementById('linearRobotsCount');
+  const linearRobotsVal = document.getElementById('linearRobotsCountVal');
+  if (linearRobotsSlider && linearRobotsVal) {
+    linearRobotsSlider.addEventListener('input', () => {
+      const v = parseInt(linearRobotsSlider.value);
+      linearRobotsVal.textContent = v === 1 ? '1 robot' : `${v} robots`;
+      CONFIG.linearMotionRobots = v;
+
+      const group = document.getElementById('linearRobotsToggle');
+      if (group) {
+        group.querySelectorAll('.toggle-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.dataset.value) === v);
+        });
+      }
+      initRobots();
+      renderSetupPreview();
+    });
+  }
 
   // Bot difficulty sliders
   const allyDiffSlider = document.getElementById('allyDiffSlider');
